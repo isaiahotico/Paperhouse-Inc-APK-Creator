@@ -4,219 +4,108 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="theme-color" content="#090910">
-  <title>Paperhouse Inc. - AI Video Creator</title>
+  <meta name="theme-color" content="#090b10">
+  <title>Paperhouse Inc. AI Video Creator</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-<div class="app">
+<header class="topbar">
+  <div class="brand">
+    <div class="logo">P</div>
+    <div>
+      <h2>Paperhouse Inc.</h2>
+      <small>AI VIDEO CREATOR</small>
+    </div>
+  </div>
+  <span id="serverStatus" class="status">Checking server...</span>
+</header>
 
-  <aside class="sidebar">
-    <div class="brand">
-      <div class="logo">P</div>
+<main class="container">
+  <section class="hero">
+    <p class="eyebrow">INTELLIGENT VIDEO STUDIO</p>
+    <h1>Create cinematic videos<br><span>with AI assistance.</span></h1>
+    <p>Turn your ideas into organized scenes, captions and downloadable videos.</p>
+  </section>
+
+  <section class="panel">
+    <div class="section-heading">
+      <h2>01. Create your video</h2>
+      <span class="tag">AI STORYBOARD</span>
+    </div>
+
+    <label for="prompt">Describe your video idea</label>
+    <textarea id="prompt" rows="5" placeholder="Example: Create a cinematic story about the future of artificial intelligence..."></textarea>
+
+    <div class="grid">
       <div>
-        <strong>PAPERHOUSE</strong>
-        <small>AI VIDEO STUDIO</small>
+        <label for="duration">Video duration</label>
+        <select id="duration">
+          <option value="30">30 seconds</option>
+          <option value="60" selected>1 minute</option>
+          <option value="90">1 minute 30 seconds</option>
+          <option value="120">2 minutes</option>
+          <option value="180">3 minutes</option>
+        </select>
+      </div>
+
+      <div>
+        <label for="quality">Video quality</label>
+        <select id="quality">
+          <option value="360">360p</option>
+          <option value="720" selected>720p HD</option>
+        </select>
       </div>
     </div>
 
-    <nav>
-      <a class="active" href="#create">✦ Create Video</a>
-      <a href="#storyboard">▣ Storyboard</a>
-      <a href="#preview">▶ Video Preview</a>
-      <a href="#settings">⚙ Settings</a>
-    </nav>
-
-    <div class="sidebar-bottom">
-      <span class="online-dot"></span> Studio Ready
-    </div>
-  </aside>
-
-  <main class="main">
-
-    <header class="topbar">
-      <div>
-        <span class="eyebrow">AI CREATION WORKSPACE</span>
-        <h1>Make your next story.</h1>
-        <p>One prompt. Complete cinematic video production.</p>
-      </div>
-      <div class="profile">PH</div>
-    </header>
-
-    <section class="dashboard">
-
-      <section class="panel" id="create">
-        <div class="section-title">
-          <div>
-            <span class="eyebrow">01 / YOUR IDEA</span>
-            <h2>Create AI Video</h2>
-          </div>
-          <span class="tag">GEMINI AI</span>
-        </div>
-
-        <label for="prompt">Describe your video</label>
-
-        <textarea id="prompt"
-          placeholder="Example: Create a 3-minute cinematic survival adventure about a traveler exploring an abandoned city. Include dramatic dialogue, suspense, realistic characters and an emotional ending."></textarea>
-
-        <div class="settings-grid">
-
-          <div>
-            <label for="duration">Video duration</label>
-            <select id="duration">
-              <option value="30">30 Seconds</option>
-              <option value="60" selected>1 Minute</option>
-              <option value="90">1 Minute 30 Seconds</option>
-              <option value="120">2 Minutes</option>
-              <option value="150">2 Minutes 30 Seconds</option>
-              <option value="180">3 Minutes</option>
-            </select>
-          </div>
-
-          <div>
-            <label for="resolution">Resolution</label>
-            <select id="resolution">
-              <option value="360p">360p Standard</option>
-              <option value="720p" selected>720p HD</option>
-            </select>
-          </div>
-
-          <div>
-            <label for="style">Video style</label>
-            <select id="style">
-              <option>Cinematic</option>
-              <option>Realistic</option>
-              <option>2D Animation</option>
-              <option>3D Animation</option>
-              <option>Anime</option>
-              <option>Documentary</option>
-              <option>Fantasy</option>
-              <option>Horror</option>
-            </select>
-          </div>
-
-          <div>
-            <label for="language">Caption language</label>
-            <select id="language">
-              <option>English</option>
-              <option>Filipino</option>
-              <option>Tagalog</option>
-              <option>Spanish</option>
-              <option>Japanese</option>
-            </select>
-          </div>
-
-        </div>
-
-        <label class="toggle">
-          <input type="checkbox" id="captionsEnabled" checked>
-          Automatically generate subtitles and captions
-        </label>
-
-        <button class="primary-button" id="generateBtn">
-          ✦ Generate AI Storyboard
-        </button>
-
-        <div id="status" class="status">
-          Ready to create your video.
-        </div>
-
-      </section>
-
-      <section class="panel" id="preview">
-
-        <div class="section-title">
-          <div>
-            <span class="eyebrow">02 / VIDEO PREVIEW</span>
-            <h2>Your Video Studio</h2>
-          </div>
-          <span class="ready">● READY</span>
-        </div>
-
-        <div class="video-preview" id="videoPreview">
-          <div class="play-circle">▶</div>
-          <h3>Your video will appear here</h3>
-          <p>Generate your storyboard and compile your clips.</p>
-        </div>
-
-        <div class="download-area">
-          <a id="downloadBtn" class="download disabled" href="#">
-            ↓ Download MP4
-          </a>
-
-          <a id="downloadSrtBtn" class="download disabled" href="#">
-            CC Download SRT
-          </a>
-        </div>
-
-      </section>
-
-    </section>
-
-    <section class="panel storyboard" id="storyboard">
-
-      <div class="section-title">
-        <div>
-          <span class="eyebrow">03 / PRODUCTION</span>
-          <h2>AI Storyboard & Captions</h2>
-        </div>
-
-        <button id="exportSrtBtn" class="secondary-button" disabled>
-          Export SRT
-        </button>
-      </div>
-
-      <div id="sceneList" class="empty">
-        Your generated scenes and captions will appear here.
-      </div>
-
-      <hr>
-
-      <h3>Compile your video</h3>
-      <p class="muted">
-        Upload your generated video clips in the same order as your storyboard.
-      </p>
-
-      <label for="videoFiles">Upload scene videos</label>
-      <input type="file" id="videoFiles" accept="video/*" multiple>
-
-      <label class="toggle">
-        <input type="checkbox" id="burnCaptions" checked>
-        Burn captions into final video
+    <div class="options">
+      <label class="check">
+        <input type="checkbox" id="captions" checked>
+        Automatic captions
       </label>
+    </div>
 
-      <button id="compileBtn" class="primary-button" disabled>
-        🎬 Compile & Export Video
-      </button>
+    <button id="generateBtn" class="primary">Generate AI Storyboard</button>
+    <p id="message" class="message"></p>
+  </section>
 
-      <div id="compileStatus" class="status"></div>
+  <section id="storyboardSection" class="panel hidden">
+    <div class="section-heading">
+      <h2>02. Your storyboard</h2>
+      <button id="exportSrtBtn" class="secondary">Export SRT</button>
+    </div>
 
-    </section>
+    <div id="videoInfo"></div>
+    <div id="scenes"></div>
+  </section>
 
-    <section class="panel" id="settings">
+  <section id="compileSection" class="panel hidden">
+    <div class="section-heading">
+      <h2>03. Compile your video</h2>
+      <span class="tag">MP4 EXPORT</span>
+    </div>
 
-      <span class="eyebrow">04 / CONNECTION</span>
-      <h2>API & Studio Settings</h2>
+    <p class="muted">
+      Upload your generated scene video clips in storyboard order.
+      Gemini creates the storyboard, not the actual video footage.
+    </p>
 
-      <p class="muted">
-        Gemini API credentials are managed securely by the server.
-        Do not place your API key in frontend JavaScript.
-      </p>
+    <label for="clips">Upload scene clips</label>
+    <input type="file" id="clips" accept="video/*" multiple>
 
-      <div id="connectionStatus" class="connection">
-        Checking server...
-      </div>
+    <button id="compileBtn" class="primary">Compile MP4 Video</button>
+    <p id="compileMessage" class="message"></p>
 
-    </section>
+    <div id="result" class="hidden">
+      <video id="preview" controls playsinline></video>
+      <a id="downloadBtn" class="download" href="#" download>Download MP4</a>
+    </div>
+  </section>
 
-    <footer>
-      PAPERHOUSE INC. · AI VIDEO CREATOR
-      <span>Creative Intelligence Studio</span>
-    </footer>
-
-  </main>
-</div>
+  <footer>
+    <p>© 2026 Paperhouse Inc. · AI Video Creator</p>
+  </footer>
+</main>
 
 <script src="app.js"></script>
 </body>
