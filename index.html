@@ -1,172 +1,223 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="theme-color" content="#090d16">
-<title>Paperhouse Inc. | Smart Video Studio</title>
-
-<script src="https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.10/dist/umd/ffmpeg.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@ffmpeg/util@0.12.1/dist/umd/index.js"></script>
-
-<style>
-*{box-sizing:border-box}
-body{margin:0;background:#090d16;color:#f4f6fb;font-family:Arial,sans-serif}
-header{padding:18px;background:#111827;border-bottom:1px solid #293449}
-.logo{font-size:22px;font-weight:bold;color:#e8bd63}
-.sub{color:#91a0b8;font-size:12px;margin-top:5px}
-.container{max-width:1100px;margin:auto;padding:18px}
-.panel{background:#111827;border:1px solid #293449;border-radius:14px;padding:18px;margin-bottom:17px}
-h2{font-size:18px;margin:0 0 13px}
-h3{font-size:15px}
-label{display:block;font-size:13px;color:#aebbd0;margin:12px 0 6px}
-input,textarea,select{width:100%;padding:12px;border-radius:9px;border:1px solid #34425a;background:#0b1220;color:white;font-size:14px}
-textarea{min-height:90px;resize:vertical}
-button{background:#d6a943;color:#101522;border:0;border-radius:9px;padding:12px 16px;font-weight:bold;cursor:pointer;margin-top:10px}
-button.secondary{background:#26364d;color:white}
-button.danger{background:#8f3440;color:white}
-button:disabled{opacity:.5;cursor:not-allowed}
-.row{display:flex;gap:10px;flex-wrap:wrap}
-.row>*{flex:1;min-width:130px}
-.status{padding:12px;border-radius:9px;background:#0b1220;color:#a9c6ff;font-size:13px;margin-top:12px;overflow-wrap:anywhere}
-.progress{height:8px;background:#263449;border-radius:20px;overflow:hidden;margin-top:10px}
-.progress div{height:100%;width:0;background:#d6a943;transition:width .2s}
-.muted,small{color:#91a0b8}
-.scene{border:1px solid #34425a;background:#0b1220;border-radius:10px;padding:13px;margin:12px 0}
-.scene img{width:100%;max-height:150px;object-fit:cover;border-radius:8px}
-.asset-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:12px;margin-top:12px}
-.asset{background:#0b1220;border:1px solid #34425a;border-radius:10px;overflow:hidden}
-.asset img{width:100%;height:110px;object-fit:cover;background:#172338}
-.asset-info{padding:10px;font-size:12px;overflow-wrap:anywhere}
-.asset-info button{width:100%;font-size:12px}
-video{width:100%;max-height:480px;background:black;border-radius:10px}
-a{color:#e8bd63}
-footer{text-align:center;color:#7f8ca1;padding:25px;font-size:12px}
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#090910">
+  <title>Paperhouse Inc. - AI Video Creator</title>
+  <link rel="stylesheet" href="style.css">
 </head>
-
 <body>
-<header>
- <div class="logo">PAPERHOUSE INC.</div>
- <div class="sub">SMART VIDEO REMIX STUDIO · EXISTING FOOTAGE ONLY</div>
-</header>
 
-<main class="container">
+<div class="app">
 
-<section class="panel">
- <h2>System status</h2>
- <div class="status" id="systemStatus">Checking Paperhouse services...</div>
-</section>
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="logo">P</div>
+      <div>
+        <strong>PAPERHOUSE</strong>
+        <small>AI VIDEO STUDIO</small>
+      </div>
+    </div>
 
-<section class="panel">
- <h2>1. Create your video</h2>
+    <nav>
+      <a class="active" href="#create">✦ Create Video</a>
+      <a href="#storyboard">▣ Storyboard</a>
+      <a href="#preview">▶ Video Preview</a>
+      <a href="#settings">⚙ Settings</a>
+    </nav>
 
- <label>Describe the video you want</label>
- <textarea id="prompt" maxlength="2000"
- placeholder="Example: Create a cinematic survival documentary showing how to find water, build shelter, make fire and survive in a forest."></textarea>
+    <div class="sidebar-bottom">
+      <span class="online-dot"></span> Studio Ready
+    </div>
+  </aside>
 
- <div class="row">
-  <div>
-   <label>Video style</label>
-   <select id="style">
-    <option>Cinematic documentary</option>
-    <option>Action adventure</option>
-    <option>Educational</option>
-    <option>News documentary</option>
-    <option>Travel film</option>
-    <option>Nature documentary</option>
-    <option>Motivational</option>
-   </select>
-  </div>
-  <div>
-   <label>Narration language</label>
-   <select id="language">
-    <option>English</option>
-    <option>Filipino</option>
-    <option>Tagalog</option>
-    <option>Spanish</option>
-    <option>Hindi</option>
-   </select>
-  </div>
- </div>
+  <main class="main">
 
- <div class="row">
-  <div>
-   <label>Video orientation</label>
-   <select id="orientation">
-    <option value="landscape">Landscape 16:9</option>
-    <option value="portrait">Portrait 9:16</option>
-    <option value="square">Square 1:1</option>
-   </select>
-  </div>
-  <div>
-   <label>Export resolution</label>
-   <select id="resolution">
-    <option value="360">360p</option>
-   </select>
-  </div>
- </div>
+    <header class="topbar">
+      <div>
+        <span class="eyebrow">AI CREATION WORKSPACE</span>
+        <h1>Make your next story.</h1>
+        <p>One prompt. Complete cinematic video production.</p>
+      </div>
+      <div class="profile">PH</div>
+    </header>
 
- <button id="generateBtn">✨ Generate storyboard and find footage</button>
- <div class="status" id="status">Ready. Describe your video to begin.</div>
- <div class="progress"><div id="progressBar"></div></div>
-</section>
+    <section class="dashboard">
 
-<section class="panel">
- <h2>2. Storyboard editor</h2>
+      <section class="panel" id="create">
+        <div class="section-title">
+          <div>
+            <span class="eyebrow">01 / YOUR IDEA</span>
+            <h2>Create AI Video</h2>
+          </div>
+          <span class="tag">GEMINI AI</span>
+        </div>
 
- <label>Video title</label>
- <input id="movieTitle" placeholder="Video title">
+        <label for="prompt">Describe your video</label>
 
- <label>Complete narration script</label>
- <textarea id="fullScript" placeholder="AI narration script..."></textarea>
+        <textarea id="prompt"
+          placeholder="Example: Create a 3-minute cinematic survival adventure about a traveler exploring an abandoned city. Include dramatic dialogue, suspense, realistic characters and an emotional ending."></textarea>
 
- <div class="row">
-  <button class="secondary" id="searchAllBtn">Search footage again</button>
-  <button class="secondary" id="addSceneBtn">+ Add scene</button>
- </div>
+        <div class="settings-grid">
 
- <div id="sceneList"></div>
-</section>
+          <div>
+            <label for="duration">Video duration</label>
+            <select id="duration">
+              <option value="30">30 Seconds</option>
+              <option value="60" selected>1 Minute</option>
+              <option value="90">1 Minute 30 Seconds</option>
+              <option value="120">2 Minutes</option>
+              <option value="150">2 Minutes 30 Seconds</option>
+              <option value="180">3 Minutes</option>
+            </select>
+          </div>
 
-<section class="panel">
- <h2>3. Your footage library</h2>
+          <div>
+            <label for="resolution">Resolution</label>
+            <select id="resolution">
+              <option value="360p">360p Standard</option>
+              <option value="720p" selected>720p HD</option>
+            </select>
+          </div>
 
- <label>Upload your own videos</label>
- <input type="file" id="videoUpload" accept="video/*" multiple>
+          <div>
+            <label for="style">Video style</label>
+            <select id="style">
+              <option>Cinematic</option>
+              <option>Realistic</option>
+              <option>2D Animation</option>
+              <option>3D Animation</option>
+              <option>Anime</option>
+              <option>Documentary</option>
+              <option>Fantasy</option>
+              <option>Horror</option>
+            </select>
+          </div>
 
- <div class="asset-grid" id="assetList"></div>
-</section>
+          <div>
+            <label for="language">Caption language</label>
+            <select id="language">
+              <option>English</option>
+              <option>Filipino</option>
+              <option>Tagalog</option>
+              <option>Spanish</option>
+              <option>Japanese</option>
+            </select>
+          </div>
 
-<section class="panel">
- <h2>4. Audio studio</h2>
+        </div>
 
- <label>Background music</label>
- <input type="file" id="musicUpload" accept="audio/*">
+        <label class="toggle">
+          <input type="checkbox" id="captionsEnabled" checked>
+          Automatically generate subtitles and captions
+        </label>
 
- <label>Narration recording</label>
- <input type="file" id="narrationUpload" accept="audio/*">
+        <button class="primary-button" id="generateBtn">
+          ✦ Generate AI Storyboard
+        </button>
 
- <small>Upload audio you own or have permission to use. AI writes the narration script, but this version does not generate voice audio.</small>
-</section>
+        <div id="status" class="status">
+          Ready to create your video.
+        </div>
 
-<section class="panel">
- <h2>5. Automatic video compiler</h2>
- <p class="muted">Combine your selected scenes into a 60-second MP4 video.</p>
- <button id="exportBtn">🎬 Compile and export video</button>
- <div class="status" id="exportStatus">Waiting for your storyboard.</div>
- <div class="progress"><div id="exportProgress"></div></div>
-</section>
+      </section>
 
-<section class="panel">
- <h2>6. Final video</h2>
- <video id="preview" controls playsinline></video>
- <p id="downloadArea"></p>
-</section>
+      <section class="panel" id="preview">
 
-</main>
+        <div class="section-title">
+          <div>
+            <span class="eyebrow">02 / VIDEO PREVIEW</span>
+            <h2>Your Video Studio</h2>
+          </div>
+          <span class="ready">● READY</span>
+        </div>
 
-<footer>Paperhouse Inc. · Smart Video Remix Studio</footer>
-<script src="/app.js"></script>
+        <div class="video-preview" id="videoPreview">
+          <div class="play-circle">▶</div>
+          <h3>Your video will appear here</h3>
+          <p>Generate your storyboard and compile your clips.</p>
+        </div>
+
+        <div class="download-area">
+          <a id="downloadBtn" class="download disabled" href="#">
+            ↓ Download MP4
+          </a>
+
+          <a id="downloadSrtBtn" class="download disabled" href="#">
+            CC Download SRT
+          </a>
+        </div>
+
+      </section>
+
+    </section>
+
+    <section class="panel storyboard" id="storyboard">
+
+      <div class="section-title">
+        <div>
+          <span class="eyebrow">03 / PRODUCTION</span>
+          <h2>AI Storyboard & Captions</h2>
+        </div>
+
+        <button id="exportSrtBtn" class="secondary-button" disabled>
+          Export SRT
+        </button>
+      </div>
+
+      <div id="sceneList" class="empty">
+        Your generated scenes and captions will appear here.
+      </div>
+
+      <hr>
+
+      <h3>Compile your video</h3>
+      <p class="muted">
+        Upload your generated video clips in the same order as your storyboard.
+      </p>
+
+      <label for="videoFiles">Upload scene videos</label>
+      <input type="file" id="videoFiles" accept="video/*" multiple>
+
+      <label class="toggle">
+        <input type="checkbox" id="burnCaptions" checked>
+        Burn captions into final video
+      </label>
+
+      <button id="compileBtn" class="primary-button" disabled>
+        🎬 Compile & Export Video
+      </button>
+
+      <div id="compileStatus" class="status"></div>
+
+    </section>
+
+    <section class="panel" id="settings">
+
+      <span class="eyebrow">04 / CONNECTION</span>
+      <h2>API & Studio Settings</h2>
+
+      <p class="muted">
+        Gemini API credentials are managed securely by the server.
+        Do not place your API key in frontend JavaScript.
+      </p>
+
+      <div id="connectionStatus" class="connection">
+        Checking server...
+      </div>
+
+    </section>
+
+    <footer>
+      PAPERHOUSE INC. · AI VIDEO CREATOR
+      <span>Creative Intelligence Studio</span>
+    </footer>
+
+  </main>
+</div>
+
+<script src="app.js"></script>
 </body>
 </html>
