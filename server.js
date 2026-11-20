@@ -1,302 +1,303 @@
+
 import express from "express";
-import helmet from "helmet";
-import { rateLimit } from "express-rate-limit";
+import dotenv from "dotenv";
+import multer from "multer";
 import path from "node:path";
+import fs from "node:fs";
 import { fileURLToPath } from "node:url";
+import { GoogleGenAI } from "@google/genai";
+import { randomUUID } from "node:crypto";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 
+dotenv.config();
+
+const root = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
-const PORT = process.env.PORT || 10000;
-const ROOT = path.dirname(fileURLToPath(import.meta.url));
+const run = promisify(execFile);
 
-app.set("trust proxy", 1);
-app.use(helmet({
-  contentSecurityPolicy: false,
-  crossOriginResourcePolicy: { policy: "cross-origin" }
-}));
-app.use(express.json({ limit: "20kb" }));
-
-const aiLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  limit: 10,
-  standardHeaders: "draft-8",
-  legacyHeaders: false
+const upload = multer({
+  dest: path.join(root, "uploads"),
+  limits: { fileSize: 500 * 1024 * 1024 }
 });
 
-const searchLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  limit: 50,
-  standardHeaders: "draft-8",
-  legacyHeaders: false
-});
+const storage = path.join(root, "storage");
 
-function requiredEnv(name) {
-  const value = process.env[name];
-  if (!value) throw new Error(`${name} is not configured`);
-  return value;
-}
+fs.mkdirSync(storage, { recursive: true });
+fs.mkdirSync(path.join(root, "uploads"), { recursive: true });
 
-function cleanText(value, max = 500) {
-  return typeof value === "string" ? value.trim().slice(0, max) : "";
-}
+app.use(express.json({ limit: "2mb" }));
+app.use(express.static(path.join(root, "public")));
+app.use("/storage", express.static(storage));
+
+const ai = process.env.GEMINI_API_KEY
+  ? new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY })
+  : null;
+
+// SERVER STATUS
 
 app.get("/api/health", (req, res) => {
   res.json({
-    app: "Paperhouse Inc.",
-    status: "online",
-    gemini: Boolean(process.env.GEMINI_API_KEY),
-    pexels: Boolean(process.env.PEXELS_API_KEY)
+    ok: true,
+    geminiConfigured: Boolean(ai),
+    videoProviderConfigured: Boolean(process.env.VIDEO_PROVIDER_URL)
   });
 });
 
-// ------------------------------------------
-// GEMINI: PROMPT TO VIDEO STORYBOARD
-// ------------------------------------------
+// GEMINI STORY GENERATION
 
-app.post("/api/plan", aiLimiter, async (req, res) => {
+app.post("/api/plan", async (req, res) => {
   try {
-    const key = requiredEnv("GEMINI_API_KEY");
-
-    const prompt = cleanText(req.body?.prompt, 2000);
-    const style = cleanText(req.body?.style, 80) || "Cinematic documentary";
-    const language = cleanText(req.body?.language, 40) || "English";
-
-    if (!prompt) {
-      return res.status(400).json({ error: "Enter a video prompt." });
+    if (!ai) {
+      return res.status(400).json({
+        error: "Gemini API key is not configured on the server."
+      });
     }
 
-    const model = process.env.GEMINI_MODEL || "gemini-2.5-flash";
+    const {
+      prompt,
+      duration = 60,
+      style = "Cinematic",
+      language = "English",
+      captionsEnabled = true
+    } = req.body;
+
+    if (!prompt || !prompt.trim()) {
+      return res.status(400).json({
+        error: "Please enter a video prompt."
+      });
+    }
+
+    const seconds = Math.min(
+      180,
+      Math.max(10, Number(duration) || 60)
+    );
 
     const instruction = `
-You are the intelligent video director for Paperhouse Inc.
+You are Paperhouse AI, an expert cinematic video director.
 
-Your task is to plan a video using EXISTING real-world footage only.
-Do not generate video, images, or fictional footage.
+Create a complete video storyboard.
 
-USER PROMPT:
+USER IDEA:
 ${prompt}
+
+DURATION:
+${seconds} seconds.
 
 STYLE:
 ${style}
 
-NARRATION LANGUAGE:
+LANGUAGE:
 ${language}
 
-Return JSON only, in this exact structure:
+CAPTIONS:
+${captionsEnabled ? "Generate captions for every scene." : "Captions may be empty."}
+
+Return ONLY valid JSON:
 
 {
   "title": "Video title",
-  "concept": "Short concept",
-  "narration": "Complete narration script",
+  "summary": "Video summary",
   "scenes": [
     {
-      "title": "Scene title",
-      "description": "What should appear in the footage",
-      "searchQuery": "Practical stock video search keywords",
-      "duration": 10,
-      "narration": "Narration for this scene"
+      "number": 1,
+      "start": 0,
+      "end": 8,
+      "visual_prompt": "Detailed visual footage instructions",
+      "dialogue": "Spoken dialogue",
+      "caption": "Subtitle text",
+      "sound": "Music and sound effects"
     }
   ]
 }
 
-Rules:
-- Exactly 6 scenes.
-- Each scene must be 10 seconds.
-- Total video duration must be 60 seconds.
-- Search queries must describe real footage that can be found online.
-- Create a coherent beginning, middle, and ending.
-- Do not ask for AI-generated footage.
-- Use practical stock video search terms.
+RULES:
+1. Cover the entire requested duration.
+2. No gaps or overlapping scenes.
+3. Use scene durations between 4 and 8 seconds where possible.
+4. Final scene must end exactly at ${seconds}.
+5. Maintain consistent characters and environments.
+6. Use cinematic camera directions.
+7. Write dialogue and captions in ${language}.
+8. Make every scene visually detailed.
+9. Do not claim that actual video footage has been generated.
 `;
 
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(key)}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: instruction }] }],
-          generationConfig: {
-            temperature: 0.7,
-            responseMimeType: "application/json"
-          }
-        }),
-        signal: AbortSignal.timeout(60000)
+    const response = await ai.models.generateContent({
+      model: process.env.GEMINI_TEXT_MODEL || "gemini-2.5-flash",
+      contents: instruction,
+      config: {
+        responseMimeType: "application/json",
+        temperature: 0.7
       }
-    );
+    });
 
-    const result = await response.json();
+    const plan = JSON.parse(response.text);
 
-    if (!response.ok) {
-      console.error("Gemini API error:", result);
-      return res.status(502).json({
-        error: "Gemini could not create your storyboard. Check your API quota and configuration."
+    if (!Array.isArray(plan.scenes) || !plan.scenes.length) {
+      throw new Error("Invalid storyboard returned by Gemini.");
+    }
+
+    // Validate the scene timings.
+    let previousEnd = 0;
+
+    for (const scene of plan.scenes) {
+      scene.start = Number(scene.start);
+      scene.end = Number(scene.end);
+
+      if (
+        !Number.isFinite(scene.start) ||
+        !Number.isFinite(scene.end) ||
+        scene.start !== previousEnd ||
+        scene.end <= scene.start ||
+        scene.end > seconds
+      ) {
+        throw new Error("Gemini returned invalid scene timing. Generate again.");
+      }
+
+      previousEnd = scene.end;
+    }
+
+    if (previousEnd !== seconds) {
+      throw new Error("Storyboard does not cover the full video duration.");
+    }
+
+    res.json({ plan });
+
+  } catch (error) {
+    console.error("Gemini error:", error);
+
+    res.status(500).json({
+      error: error.message || "Story generation failed."
+    });
+  }
+});
+
+// VIDEO COMPILATION
+
+app.post("/api/compile", upload.array("clips", 60), async (req, res) => {
+  const uploaded = (req.files || []).map(file => file.path);
+
+  try {
+    if (!uploaded.length) {
+      return res.status(400).json({
+        error: "Upload video clips first."
       });
     }
 
-    const raw = result.candidates?.[0]?.content?.parts
-      ?.map(part => part.text || "")
-      .join("");
+    const resolution = req.body.resolution === "360p"
+      ? "360p"
+      : "720p";
 
-    if (!raw) throw new Error("Gemini returned an empty response.");
+    const width = resolution === "360p" ? 640 : 1280;
+    const height = resolution === "360p" ? 360 : 720;
 
-    const plan = JSON.parse(raw);
+    const id = randomUUID();
+    const folder = path.join(storage, id);
 
-    if (!Array.isArray(plan.scenes) || plan.scenes.length !== 6) {
-      throw new Error("Gemini returned an invalid storyboard.");
+    fs.mkdirSync(folder, { recursive: true });
+
+    const listFile = path.join(folder, "clips.txt");
+    const joined = path.join(folder, "joined.mp4");
+    const finalVideo = path.join(folder, "paperhouse-video.mp4");
+
+    // Build FFmpeg input list.
+    fs.writeFileSync(
+      listFile,
+      uploaded.map(file =>
+        `file '${file.replace(/'/g, "'\\''")}'`
+      ).join("\n")
+    );
+
+    // Join and resize clips.
+    await run("ffmpeg", [
+      "-y",
+      "-f", "concat",
+      "-safe", "0",
+      "-i", listFile,
+      "-vf",
+      `scale=${width}:${height}:force_original_aspect_ratio=decrease,pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2,setsar=1`,
+      "-c:v", "libx264",
+      "-preset", "veryfast",
+      "-crf", "24",
+      "-c:a", "aac",
+      "-b:a", "128k",
+      joined
+    ]);
+
+    const captions = JSON.parse(req.body.captions || "[]");
+
+    if (captions.length) {
+      const subtitleFile = path.join(folder, "captions.srt");
+
+      const srt = captions.map((caption, index) => {
+        return `${index + 1}
+${toSrtTime(caption.start)} --> ${toSrtTime(caption.end)}
+${String(caption.caption || "").replace(/\n/g, " ")}
+`;
+      }).join("\n");
+
+      fs.writeFileSync(subtitleFile, srt);
+
+      // Burn subtitles into video.
+      const escaped = subtitleFile
+        .replace(/\\/g, "\\\\")
+        .replace(/:/g, "\\:")
+        .replace(/'/g, "\\'");
+
+      await run("ffmpeg", [
+        "-y",
+        "-i", joined,
+        "-vf",
+        `subtitles='${escaped}':force_style='FontName=Arial,FontSize=22,PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,BorderStyle=1,Outline=2,Alignment=2,MarginV=35'`,
+        "-c:v", "libx264",
+        "-preset", "veryfast",
+        "-crf", "24",
+        "-c:a", "copy",
+        finalVideo
+      ]);
+
+    } else {
+      fs.copyFileSync(joined, finalVideo);
     }
-
-    const scenes = plan.scenes.map((scene, index) => ({
-      title: cleanText(scene.title, 120) || `Scene ${index + 1}`,
-      description: cleanText(scene.description, 500),
-      searchQuery: cleanText(scene.searchQuery, 180) ||
-        cleanText(scene.title, 120),
-      duration: 10,
-      narration: cleanText(scene.narration, 1000)
-    }));
 
     res.json({
-      title: cleanText(plan.title, 150) || "Paperhouse Video",
-      concept: cleanText(plan.concept, 500),
-      narration: cleanText(plan.narration, 5000),
-      scenes
+      success: true,
+      videoUrl: `/storage/${id}/paperhouse-video.mp4`,
+      captionsUrl: captions.length
+        ? `/storage/${id}/captions.srt`
+        : null
     });
 
   } catch (error) {
-    console.error("Storyboard error:", error.message);
+    console.error("Compilation error:", error);
+
     res.status(500).json({
-      error: "Unable to create storyboard. Please try again."
+      error: error.message + " Check that FFmpeg is installed."
     });
+
+  } finally {
+    for (const file of uploaded) {
+      try {
+        fs.unlinkSync(file);
+      } catch {}
+    }
   }
 });
 
-// ------------------------------------------
-// PEXELS: VIDEO SEARCH
-// ------------------------------------------
+function toSrtTime(seconds) {
+  const ms = Math.round(Number(seconds || 0) * 1000);
 
-app.get("/api/search", searchLimiter, async (req, res) => {
-  try {
-    const key = requiredEnv("PEXELS_API_KEY");
-    const query = cleanText(req.query.q, 150);
+  const h = String(Math.floor(ms / 3600000)).padStart(2, "0");
+  const m = String(Math.floor(ms % 3600000 / 60000)).padStart(2, "0");
+  const s = String(Math.floor(ms % 60000 / 1000)).padStart(2, "0");
+  const z = String(ms % 1000).padStart(3, "0");
 
-    const orientation = ["landscape", "portrait", "square"]
-      .includes(req.query.orientation)
-      ? req.query.orientation
-      : "landscape";
-
-    if (!query) {
-      return res.status(400).json({ error: "Enter search keywords." });
-    }
-
-    const url = new URL("https://api.pexels.com/videos/search");
-    url.searchParams.set("query", query);
-    url.searchParams.set("per_page", "8");
-    url.searchParams.set("orientation", orientation);
-
-    const response = await fetch(url, {
-      headers: { Authorization: key },
-      signal: AbortSignal.timeout(30000)
-    });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      console.error("Pexels error:", data);
-      return res.status(502).json({
-        error: "Video search failed. Check the Pexels API configuration."
-      });
-    }
-
-    const videos = (data.videos || []).map(video => {
-      const files = (video.video_files || [])
-        .filter(file =>
-          file.link &&
-          file.file_type?.toLowerCase().includes("mp4") &&
-          safePexelsURL(file.link)
-        )
-        .sort((a, b) => (a.width || 9999) - (b.width || 9999));
-
-      const selected =
-        files.find(file => (file.width || 0) >= 360) || files[0];
-
-      if (!selected) return null;
-
-      return {
-        id: String(video.id),
-        name: `Pexels video ${video.id}`,
-        url: `/api/clip?url=${encodeURIComponent(selected.link)}`,
-        thumbnail: video.image,
-        photographer: cleanText(video.user?.name, 100),
-        sourceUrl: video.url,
-        duration: video.duration || 0,
-        source: "Pexels"
-      };
-    }).filter(Boolean);
-
-    res.json({ videos });
-
-  } catch (error) {
-    console.error("Pexels search error:", error.message);
-    res.status(500).json({ error: "Unable to search videos." });
-  }
-});
-
-// ------------------------------------------
-// PEXELS: SAFE VIDEO PROXY
-// ------------------------------------------
-
-function safePexelsURL(value) {
-  try {
-    const url = new URL(value);
-    return url.protocol === "https:" &&
-      url.hostname === "videos.pexels.com";
-  } catch {
-    return false;
-  }
+  return `${h}:${m}:${s},${z}`;
 }
 
-app.get("/api/clip", async (req, res) => {
-  try {
-    const url = String(req.query.url || "");
+const PORT = process.env.PORT || 3000;
 
-    if (!safePexelsURL(url)) {
-      return res.status(400).send("Invalid video source.");
-    }
-
-    const upstream = await fetch(url, {
-      signal: AbortSignal.timeout(120000)
-    });
-
-    if (!upstream.ok || !upstream.body) {
-      return res.status(502).send("Unable to retrieve video.");
-    }
-
-    res.setHeader(
-      "Content-Type",
-      upstream.headers.get("content-type") || "video/mp4"
-    );
-    res.setHeader("Cache-Control", "private, max-age=300");
-
-    const { Readable } = await import("node:stream");
-    Readable.fromWeb(upstream.body).pipe(res);
-
-  } catch (error) {
-    console.error("Video proxy error:", error.message);
-    if (!res.headersSent) {
-      res.status(500).send("Video download failed.");
-    }
-  }
-});
-
-// ------------------------------------------
-// WEBSITE
-// ------------------------------------------
-
-app.use(express.static(path.join(ROOT, "public")));
-
-app.get("*", (req, res) => {
-  res.sendFile(path.join(ROOT, "public", "index.html"));
-});
-
-app.listen(PORT, "0.0.0.0", () => {
-  console.log(`Paperhouse Inc. running on port ${PORT}`);
+app.listen(PORT, () => {
+  console.log(`Paperhouse AI running on port ${PORT}`);
 });
