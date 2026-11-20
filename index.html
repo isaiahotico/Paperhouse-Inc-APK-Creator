@@ -1,235 +1,177 @@
-
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="dark">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="theme-color" content="#10131d">
-  <title>Memora AI</title>
-  <link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LocalGPT - Offline Self-Learning AI</title>
+  <!-- Tailwind CSS CDN for styling -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            sidebar: '#171717',
+            chatbg: '#212121',
+            inputbg: '#2f2f2f',
+            bubbleUser: '#2f2f2f',
+            bubbleAi: '#212121',
+            accent: '#10a37f'
+          }
+        }
+      }
+    };
+  </script>
+  <style>
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #424242; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #555555; }
+    pre code { font-family: monospace; }
+  </style>
 </head>
-<body>
+<body class="bg-chatbg text-gray-100 h-screen flex overflow-hidden font-sans antialiased">
 
-<div class="app">
+  <!-- Mobile Sidebar Overlay -->
+  <div id="mobile-overlay" class="fixed inset-0 bg-black/50 z-20 hidden md:hidden"></div>
 
-  <!-- SIDEBAR -->
-  <aside class="sidebar" id="sidebar">
-    <div class="brand">
-      <div class="brand-icon">✦</div>
-      <div>
-        <strong>Memora</strong>
-        <small>AI WITH MEMORY</small>
-      </div>
+  <!-- Sidebar -->
+  <aside id="sidebar" class="fixed inset-y-0 left-0 z-30 w-64 bg-sidebar flex flex-col transition-transform duration-300 transform -translate-x-full md:relative md:translate-x-0 border-r border-white/10">
+    <!-- Top Action -->
+    <div class="p-3">
+      <button id="btn-new-chat" class="w-full flex items-center justify-between px-3 py-2.5 rounded-lg border border-white/20 hover:bg-white/5 transition text-sm font-medium">
+        <span class="flex items-center gap-2">
+          <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+          New chat
+        </span>
+        <span class="text-xs text-gray-400 bg-white/10 px-1.5 py-0.5 rounded">Ctrl+K</span>
+      </button>
     </div>
 
-    <button class="new-chat-btn" id="newChatBtn">
-      ＋ New conversation
-    </button>
+    <!-- Chat History List -->
+    <div class="flex-1 overflow-y-auto px-3 space-y-1" id="chat-list">
+      <!-- Dynamic Chat items -->
+    </div>
 
-    <div class="side-label">YOUR SPACE</div>
-
-    <button class="nav-btn active" data-view="chat">
-      <span>◉</span> AI Chat
-    </button>
-
-    <button class="nav-btn" data-view="memory">
-      <span>◈</span> Memory Library
-      <span class="nav-count" id="memoryCount">0</span>
-    </button>
-
-    <button class="nav-btn" data-view="history">
-      <span>◷</span> Chat History
-    </button>
-
-    <div class="sidebar-bottom">
-      <div class="storage-status">
-        <span class="online-dot"></span>
-        Local memory active
-      </div>
-
-      <button class="nav-btn" id="themeBtn">
-        ◐ Appearance
+    <!-- Bottom Controls & Memory Stats -->
+    <div class="p-3 border-t border-white/10 space-y-2">
+      <!-- Auto-learn indicator button -->
+      <button id="btn-memory-modal" class="w-full flex items-center justify-between px-3 py-2 text-xs text-gray-300 hover:bg-white/5 rounded-lg transition">
+        <span class="flex items-center gap-2">
+          <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+          <span>Knowledge Bank</span>
+        </span>
+        <span id="knowledge-count" class="bg-emerald-500/20 text-emerald-300 px-1.5 py-0.5 rounded font-mono text-[10px]">0 facts</span>
       </button>
 
-      <button class="nav-btn" id="exportBtn">
-        ⇩ Export memory
+      <button id="btn-export" class="w-full text-left px-3 py-2 text-xs text-gray-400 hover:text-white hover:bg-white/5 rounded-lg transition flex items-center gap-2">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+        Export Chats & Memory
       </button>
 
-      <button class="nav-btn" id="importBtn">
-        ⇧ Import backup
+      <button id="btn-clear-all" class="w-full text-left px-3 py-2 text-xs text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg transition flex items-center gap-2">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+        Reset Everything
       </button>
-
-      <input type="file" id="importFile"
-             accept=".json,application/json" hidden>
     </div>
   </aside>
 
-  <!-- MAIN -->
-  <main class="main">
-
-    <header class="topbar">
-      <button class="icon-btn menu-btn" id="menuBtn">☰</button>
-
-      <div class="top-title">
-        <strong id="pageTitle">Memora AI</strong>
-        <span id="statusText">Local intelligence · Memory enabled</span>
+  <!-- Main Chat Container -->
+  <div class="flex-1 flex flex-col h-full w-full bg-chatbg">
+    <!-- Navbar -->
+    <header class="h-12 border-b border-white/10 flex items-center justify-between px-4 text-sm">
+      <div class="flex items-center gap-3">
+        <button id="btn-toggle-sidebar" class="md:hidden text-gray-400 hover:text-white p-1">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
+        </button>
+        <span class="font-semibold text-white tracking-wide flex items-center gap-2">
+          LocalGPT <span class="text-[10px] uppercase tracking-wider bg-emerald-500/20 text-emerald-400 px-1.5 py-0.5 rounded font-mono">100% Offline</span>
+        </span>
       </div>
-
-      <button class="icon-btn" id="clearChatBtn"
-              title="Clear conversation">⌫</button>
+      <div id="current-chat-title" class="text-xs text-gray-400 truncate max-w-[200px] sm:max-w-xs">
+        New Conversation
+      </div>
     </header>
 
-    <!-- CHAT VIEW -->
-    <section id="chatView" class="view active">
-
-      <div class="chat-scroll" id="chatScroll">
-        <div id="messages"></div>
-      </div>
-
-      <div class="composer-area">
-        <div class="quick-actions" id="quickActions">
-          <button data-prompt="What do you remember about me?">
-            ◈ What do you remember?
-          </button>
-          <button data-prompt="Help me organize my projects">
-            ✧ Organize my projects
-          </button>
-          <button data-prompt="Give me a creative idea">
-            ✦ Give me an idea
-          </button>
+    <!-- Message Stream -->
+    <main id="chat-messages" class="flex-1 overflow-y-auto px-4 md:px-0 py-6 space-y-6 max-w-3xl mx-auto w-full">
+      <!-- Welcome Intro if chat is empty -->
+      <div id="welcome-screen" class="text-center py-16 space-y-4">
+        <div class="w-12 h-12 rounded-full bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center mx-auto text-emerald-400 text-xl font-bold">
+          ⚡
         </div>
+        <h2 class="text-2xl font-bold text-gray-200">What would you like to explore?</h2>
+        <p class="text-sm text-gray-400 max-w-md mx-auto">
+          No cloud, no API keys, and no subscriptions. Talk to it, teach it facts, and watch it retain knowledge using your browser's local memory.
+        </p>
 
-        <div class="composer">
-          <textarea id="messageInput"
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-left max-w-lg mx-auto pt-4 text-xs">
+          <div class="p-3 rounded-lg border border-white/10 bg-inputbg hover:border-emerald-500/40 cursor-pointer sample-prompt">
+            💡 <strong>Teach fact:</strong> "Remember that my favourite programming language is Rust."
+          </div>
+          <div class="p-3 rounded-lg border border-white/10 bg-inputbg hover:border-emerald-500/40 cursor-pointer sample-prompt">
+            ❓ <strong>Ask questions:</strong> "What are the benefits of keeping data in LocalStorage?"
+          </div>
+          <div class="p-3 rounded-lg border border-white/10 bg-inputbg hover:border-emerald-500/40 cursor-pointer sample-prompt">
+            ⚙️ <strong>Define logic:</strong> "Learn: CRM stands for Customer Relationship Management."
+          </div>
+          <div class="p-3 rounded-lg border border-white/10 bg-inputbg hover:border-emerald-500/40 cursor-pointer sample-prompt">
+            ✏️ <strong>Code helper:</strong> "Write a JavaScript function to reverse a string."
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- Input Footer -->
+    <footer class="p-4 bg-chatbg">
+      <div class="max-w-3xl mx-auto relative">
+        <form id="chat-form" class="relative flex items-end bg-inputbg rounded-2xl border border-white/10 focus-within:border-white/30 transition shadow-lg">
+          <textarea
+            id="prompt-input"
             rows="1"
-            placeholder="Ask Memora anything..."
-            maxlength="5000"></textarea>
-
-          <button id="sendBtn" class="send-btn" title="Send">
-            ↑
+            placeholder="Message LocalGPT (Try: 'Remember that...' or 'Learn: X is Y')..."
+            class="w-full bg-transparent text-gray-100 placeholder-gray-500 text-sm px-4 py-3.5 focus:outline-none resize-none max-h-48 overflow-y-auto leading-relaxed"
+          ></textarea>
+          <button
+            type="submit"
+            id="btn-send"
+            class="m-2 p-2 rounded-xl bg-white text-black hover:bg-gray-200 disabled:opacity-30 disabled:hover:bg-white transition flex-shrink-0"
+            disabled
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 12h14M12 5l7 7-7 7"/></svg>
           </button>
-        </div>
-
-        <div class="composer-footer">
-          <span>Memora uses local memory, not a cloud AI.</span>
-          <span>Enter ↵ to send</span>
+        </form>
+        <div class="text-[11px] text-center text-gray-500 mt-2">
+          LocalGPT saves conversations and learned facts directly in LocalStorage.
         </div>
       </div>
-    </section>
+    </footer>
+  </div>
 
-    <!-- MEMORY VIEW -->
-    <section id="memoryView" class="view">
-      <div class="page-content">
-        <div class="page-heading">
-          <div>
-            <h1>Memory Library</h1>
-            <p>Things your assistant has saved for future conversations.</p>
-          </div>
-
-          <button class="primary-btn" id="addMemoryBtn">
-            + Add memory
-          </button>
+  <!-- Memory / Knowledge Inspector Modal -->
+  <div id="memory-modal" class="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-[#1e1e1e] border border-white/15 rounded-xl max-w-xl w-full max-h-[80vh] flex flex-col shadow-2xl">
+      <div class="p-4 border-b border-white/10 flex items-center justify-between">
+        <div>
+          <h3 class="font-semibold text-white">Local Knowledge Base</h3>
+          <p class="text-xs text-gray-400">Facts and answers the AI has learned from you</p>
         </div>
-
-        <div class="memory-stats">
-          <div class="stat-card">
-            <span class="stat-icon">◈</span>
-            <div>
-              <strong id="totalMemories">0</strong>
-              <small>Total memories</small>
-            </div>
-          </div>
-
-          <div class="stat-card">
-            <span class="stat-icon">⌕</span>
-            <div>
-              <strong id="categoryCount">0</strong>
-              <small>Categories</small>
-            </div>
-          </div>
-        </div>
-
-        <div class="memory-search">
-          <input type="search" id="memorySearch"
-                 placeholder="Search memories...">
-        </div>
-
-        <div class="category-filters" id="categoryFilters">
-          <button class="filter-btn active" data-category="all">All</button>
-          <button class="filter-btn" data-category="personal">Personal</button>
-          <button class="filter-btn" data-category="projects">Projects</button>
-          <button class="filter-btn" data-category="preferences">Preferences</button>
-          <button class="filter-btn" data-category="facts">Facts</button>
-          <button class="filter-btn" data-category="notes">Notes</button>
-        </div>
-
-        <div class="memory-list" id="memoryList"></div>
-
-        <div class="empty-state" id="memoryEmpty" hidden>
-          <div class="empty-icon">◈</div>
-          <h3>No memories found</h3>
-          <p>Tell Memora something to remember, or add it manually.</p>
-        </div>
+        <button id="btn-close-modal" class="text-gray-400 hover:text-white text-lg font-mono">&times;</button>
       </div>
-    </section>
 
-    <!-- HISTORY VIEW -->
-    <section id="historyView" class="view">
-      <div class="page-content">
-        <div class="page-heading">
-          <div>
-            <h1>Chat History</h1>
-            <p>Your conversations saved on this device.</p>
-          </div>
-        </div>
-
-        <div id="historyList" class="history-list"></div>
-
-        <div class="empty-state" id="historyEmpty" hidden>
-          <div class="empty-icon">◷</div>
-          <h3>No saved conversations</h3>
-          <p>Your conversations will appear here.</p>
-        </div>
+      <div class="p-4 overflow-y-auto flex-1 space-y-3" id="memory-items-container">
+        <!-- Dynamically injected items -->
       </div>
-    </section>
 
-  </main>
-</div>
-
-<!-- MEMORY MODAL -->
-<div class="modal-overlay" id="memoryModal">
-  <div class="modal">
-    <div class="modal-header">
-      <h2 id="modalTitle">Add memory</h2>
-      <button class="icon-btn" id="closeModalBtn">×</button>
-    </div>
-
-    <label for="memoryTitle">Title</label>
-    <input id="memoryTitle" type="text" maxlength="100"
-           placeholder="Memory title">
-
-    <label for="memoryContent">Memory content</label>
-    <textarea id="memoryContent" rows="4" maxlength="3000"
-              placeholder="What should Memora remember?"></textarea>
-
-    <label for="memoryCategory">Category</label>
-    <select id="memoryCategory">
-      <option value="personal">Personal</option>
-      <option value="projects">Projects</option>
-      <option value="preferences">Preferences</option>
-      <option value="facts">Facts</option>
-      <option value="notes">Notes</option>
-    </select>
-
-    <div class="modal-actions">
-      <button class="secondary-btn" id="cancelModalBtn">Cancel</button>
-      <button class="primary-btn" id="saveMemoryBtn">Save memory</button>
+      <div class="p-3 border-t border-white/10 flex justify-between items-center text-xs text-gray-400">
+        <span id="memory-storage-size">0 KB used</span>
+        <button id="btn-wipe-memory" class="text-red-400 hover:underline">Wipe Knowledge Only</button>
+      </div>
     </div>
   </div>
-</div>
 
-<div class="toast" id="toast"></div>
-
-<script src="app.js"></script>
+  <script src="app.js"></script>
 </body>
 </html>
