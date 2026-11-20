@@ -1,10 +1,68 @@
 
 <!DOCTYPE html>
 <html lang="en">
-<head>
+<head><link rel="stylesheet" href="style.css">
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>TaskDesk Local</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#0b1120;color:#edf2ff;font-family:Arial,sans-serif}
+.app{display:flex;min-height:100vh}
+.sidebar{width:230px;background:#111b2e;padding:24px;display:flex;flex-direction:column;gap:12px}
+.sidebar h2{color:#67a7ff;margin-bottom:0}
+.subtitle{color:#8e9bb3;font-size:13px}
+.nav{background:transparent;color:#bac7db;border:0;padding:13px;text-align:left;border-radius:9px;cursor:pointer}
+.nav:hover,.nav.active{background:#243552;color:white}
+.sidebar-bottom{margin-top:auto;font-size:12px;color:#9eabc1}
+.offline{color:#4ade80}
+.main{flex:1;padding:28px;min-width:0}
+header{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:25px}
+header h1{font-size:26px;margin:0}
+.user-badge{background:#1c2940;padding:10px 14px;border-radius:30px}
+.welcome{padding:24px;background:linear-gradient(120deg,#1e3a66,#243958);border-radius:16px;margin-bottom:20px}
+.welcome h2{margin-top:0}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:15px;margin-bottom:20px}
+.stat-card,.panel{background:#151f32;border:1px solid #26344c;border-radius:14px;padding:20px}
+.stat-card span{color:#9baec8;font-size:13px}
+.stat-card h2{font-size:30px;margin-bottom:0;color:#65a7ff}
+.panel{margin-bottom:20px}
+.panel h3{margin-top:0}
+.panel-heading{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.primary{background:#347dff;color:white;border:0;padding:11px 15px;border-radius:9px;cursor:pointer}
+.secondary{background:#29364d;color:white;border:0;padding:11px 15px;border-radius:9px;cursor:pointer}
+input,textarea{width:100%;padding:12px;margin:8px 0;background:#0d1727;border:1px solid #30415b;color:white;border-radius:8px}
+textarea{min-height:75px;resize:vertical}
+.add-form{margin:15px 0;padding:15px;background:#101a2b;border-radius:12px}
+.form-actions{display:flex;gap:10px}
+.task{padding:15px;margin:10px 0;background:#101a2b;border:1px solid #293952;border-radius:12px}
+.task h4{margin:0 0 8px}
+.task p{color:#9eabc1;font-size:14px}
+.task-buttons{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.task-buttons button,.task-buttons a{padding:9px 12px;border:0;border-radius:8px;cursor:pointer;text-decoration:none;font-size:13px}
+.open-btn{background:#263a59;color:#dceaff}
+.done-btn{background:#16794f;color:white}
+.delete-btn{background:#50303a;color:#ffc2c9}
+.completed{opacity:.65}
+.completed-label{color:#4ade80;font-size:12px}
+.empty{color:#8290a7;padding:15px;text-align:center}
+.profile-panel{max-width:500px}
+.hidden{display:none!important}
+@media(max-width:750px){
+.app{display:block}
+.sidebar{width:100%;padding:15px;display:block}
+.sidebar h2{display:inline-block;margin-right:15px}
+.sidebar .subtitle{display:none}
+.nav{display:inline-block;padding:10px;font-size:12px}
+.sidebar-bottom{display:none}
+.main{padding:15px}
+header h1{font-size:22px}
+.stats{grid-template-columns:1fr 1fr}
+.stat-card:last-child{grid-column:span 2}
+.panel-heading{align-items:flex-start}
+}
+</style>
+
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
