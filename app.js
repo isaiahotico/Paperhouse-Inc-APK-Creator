@@ -1,184 +1,189 @@
+// ==========================================
+// PAPERHOUSE INC. - SMART VIDEO REMIX STUDIO
+// ==========================================
 
-const $ = id => document.getElementById(id);
+const GEMINI_MODEL = "gemini-2.5-flash";
 
 let scenes = [];
 let assets = [];
+let musicFile = null;
+let narrationFile = null;
 let ffmpeg = null;
-let ffmpegReady = false;
-let narrationBlob = null;
-let outputURL = null;
+let ffmpegLoaded = false;
+let finalVideoURL = null;
 
-const GEMINI_MODEL = "gemini-2.5-flash";
-const GEMINI_URL =
-  `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
+const $ = id => document.getElementById(id);
 
-function status(message, progress) {
+function setStatus(message) {
   $("status").textContent = message;
-  if (progress !== undefined) $("bar").style.width = progress + "%";
 }
 
-function exportStatus(message) {
+function setProgress(value) {
+  $("progressBar").style.width = Math.max(0, Math.min(100, value)) + "%";
+}
+
+function setExportStatus(message) {
   $("exportStatus").textContent = message;
 }
 
-function escapeHTML(value) {
-  return String(value ?? "").replace(/[&<>"']/g, c => ({
-    "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
-  })[c]);
+function setExportProgress(value) {
+  $("exportProgress").style.width =
+    Math.max(0, Math.min(100, value)) + "%";
 }
 
-// ---------------- AI STORYBOARD ----------------
+function escapeHTML(value) {
+  return String(value ?? "").replace(/[&<>"']/g, char => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#039;"
+  })[char]);
+}
 
-async function askGemini(prompt) {
+// ==========================================
+// AI PROMPT UNDERSTANDING
+// ==========================================
+
+async function generateVideoPlan() {
   const key = $("geminiKey").value.trim();
-  if (!key) throw new Error("Enter your Gemini API key first.");
+  const prompt = $("prompt").value.trim();
 
-  const instructions = `
-Create an intelligent 60-second video storyboard.
+  if (!key) return alert("Enter your Gemini API key.");
+  if (!prompt) return alert("Enter your video prompt.");
 
-User idea: ${prompt}
-Style: ${$("style").value}
-Language: ${$("language").value}
+  $("generateBtn").disabled = true;
+  setProgress(5);
+  setStatus("AI is understanding your prompt...");
 
-Create exactly 5 scenes. Their durations must total exactly 60 seconds.
+  try {
+    const requestPrompt = `
+You are the video director for Paperhouse Inc.
 
-Each scene needs:
-- title
-- description
-- searchQuery: concise English stock-footage search terms
-- duration: seconds
-- narration: spoken narration for this scene
+Create a video plan using ONLY existing real-world video footage.
+Do not request AI-generated video.
 
-Also create a compelling movie title and a complete narration script.
+USER VIDEO PROMPT:
+${prompt}
+
+STYLE:
+${$("style").value}
+
+NARRATION LANGUAGE:
+${$("language").value}
+
+Create exactly 6 scenes for a 60-second video.
 
 Return ONLY valid JSON in this format:
+
 {
- "title":"Movie title",
- "concept":"Short movie concept",
- "narration":"Complete narration",
+ "title":"Video title",
+ "concept":"Short video concept",
+ "narration":"Complete narration script",
  "scenes":[
   {
    "title":"Scene title",
-   "description":"Visual description",
-   "searchQuery":"jungle survival",
-   "duration":12,
-   "narration":"Spoken words"
+   "description":"What should be shown",
+   "searchQuery":"Short practical stock footage search phrase",
+   "duration":10,
+   "narration":"Scene narration"
   }
  ]
 }
 
-No markdown. Exactly 5 scenes. Total duration exactly 60.
+Rules:
+- Exactly 6 scenes.
+- Each scene is 10 seconds.
+- Total duration is 60 seconds.
+- Search queries must describe footage that could realistically exist.
+- Avoid abstract or impossible visual requests.
+- Use clear, specific search terms.
+- Ensure the scenes form a logical story.
+- Do not include video-generation instructions.
 `;
 
-  const response = await fetch(
-    GEMINI_URL + "?key=" + encodeURIComponent(key),
-    {
-      method: "POST",
-      headers: {"Content-Type":"application/json"},
-      body: JSON.stringify({
-        contents: [{parts:[{text:instructions}]}],
-        generationConfig: {temperature:0.8}
-      })
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${encodeURIComponent(key)}`,
+      {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({
+          contents: [{
+            parts: [{text: requestPrompt}]
+          }],
+          generationConfig: {
+            temperature: 0.7,
+            responseMimeType: "application/json"
+          }
+        })
+      }
+    );
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error("Gemini error: " + errorText);
     }
-  );
 
-  if (!response.ok) {
-    throw new Error("Gemini error: " + await response.text());
-  }
+    const data = await response.json();
+    const raw = data.candidates?.[0]?.content?.parts?.[0]?.text;
 
-  const data = await response.json();
-  const text = data.candidates?.[0]?.content?.parts
-    ?.map(p => p.text || "").join("");
+    if (!raw) throw new Error("AI returned an empty response.");
 
-  if (!text) throw new Error("AI returned an empty storyboard.");
+    const plan = JSON.parse(raw);
+    if (!Array.isArray(plan.scenes) || !plan.scenes.length) {
+      throw new Error("AI did not return valid scenes.");
+    }
 
-  const clean = text.replace(/```json|```/g, "").trim();
-  const result = JSON.parse(clean);
+    $("movieTitle").value = plan.title || "Paperhouse Video";
+    $("fullScript").value = plan.narration || "";
 
-  if (!Array.isArray(result.scenes) || !result.scenes.length) {
-    throw new Error("AI storyboard has no scenes.");
-  }
-
-  return result;
-}
-
-$("create").addEventListener("click", async () => {
-  const prompt = $("prompt").value.trim();
-  if (!prompt) return alert("Describe your movie first.");
-
-  $("create").disabled = true;
-
-  try {
-    status("AI is developing your movie concept...", 10);
-
-    const result = await askGemini(prompt);
-
-    scenes = result.scenes.map((s, i) => ({
+    scenes = plan.scenes.slice(0, 10).map((scene, index) => ({
       id: crypto.randomUUID(),
-      title: s.title || `Scene ${i+1}`,
-      description: s.description || "",
-      query: s.searchQuery || prompt,
-      narration: s.narration || "",
-      duration: Number(s.duration) || 12,
-      assetId: ""
+      title: scene.title || `Scene ${index + 1}`,
+      description: scene.description || "",
+      searchQuery: scene.searchQuery || scene.title || prompt,
+      duration: Number(scene.duration) || 10,
+      narration: scene.narration || "",
+      assetId: null,
+      searching: false
     }));
 
-    // Normalize scene durations to exactly 60 seconds.
     normalizeDurations();
-
-    $("storyText").innerHTML =
-      `<h3>${escapeHTML(result.title)}</h3>
-       <p>${escapeHTML(result.concept)}</p>`;
-
-    $("script").value = result.narration || "";
-
-    $("storyPanel").classList.remove("hidden");
-    $("stockPanel").classList.remove("hidden");
-    $("editorPanel").classList.remove("hidden");
-
     renderScenes();
 
-    status("Storyboard created! Searching for stock footage...", 30);
+    setProgress(20);
+    setStatus("AI storyboard ready. Searching existing footage...");
 
-    // Search relevant footage for each scene.
-    for (const scene of scenes) {
-      try {
-        await searchPexels(scene.query, scene.id, true);
-      } catch (err) {
-        console.warn("Footage search failed:", err);
-      }
-    }
-
-    renderScenes();
-    status("Your storyboard and footage selections are ready.", 55);
+    await searchAllScenes();
 
   } catch (error) {
-    status("Error: " + error.message);
-    alert(error.message);
+    console.error(error);
+    setStatus("Error: " + error.message);
+    alert("Could not create the video plan. Check your API key and try again.");
   } finally {
-    $("create").disabled = false;
+    $("generateBtn").disabled = false;
   }
-});
+}
 
-// ---------------- STOCK VIDEO SEARCH ----------------
+// ==========================================
+// VIDEO SEARCH - PEXELS
+// ==========================================
 
-async function searchPexels(query, sceneId, automatic = false) {
+async function searchPexels(query) {
   const key = $("pexelsKey").value.trim();
-  if (!key) {
-    if (!automatic) alert("Enter your Pexels API key.");
-    return;
-  }
 
-  const orientation = $("format").value;
+  if (!key) throw new Error("Enter your Pexels API key.");
 
-  const url = new URL("https://api.pexels.com/v1/videos/search");
-  url.searchParams.set("query", query);
-  url.searchParams.set("per_page", "8");
-  url.searchParams.set("orientation", orientation);
+  const orientation = $("orientation").value;
 
-  const response = await fetch(url, {
-    headers: {Authorization:key}
-  });
+  const response = await fetch(
+    "https://api.pexels.com/videos/search?query=" +
+    encodeURIComponent(query) +
+    "&per_page=8&orientation=" + orientation,
+    {
+      headers: {Authorization: key}
+    }
+  );
 
   if (!response.ok) {
     throw new Error("Pexels search failed: " + response.status);
@@ -186,528 +191,554 @@ async function searchPexels(query, sceneId, automatic = false) {
 
   const data = await response.json();
 
-  const found = (data.videos || []).map(video => {
+  return (data.videos || []).map(video => {
     const files = (video.video_files || [])
-      .filter(f => f.link)
-      .sort((a,b) => {
-        const target = 640;
-        return Math.abs((a.width || 0)-target) -
-               Math.abs((b.width || 0)-target);
-      });
+      .filter(file => file.link && file.file_type?.includes("mp4"))
+      .sort((a, b) => (a.width || 9999) - (b.width || 9999));
 
-    const file = files[0];
-    if (!file) return null;
+    const selected = files.find(file => (file.width || 9999) >= 360) ||
+                     files[0];
+
+    if (!selected) return null;
 
     return {
-      id: "pexels-" + video.id,
-      name: "Pexels video " + video.id,
-      url: file.link,
+      id: crypto.randomUUID(),
+      name: `Pexels video ${video.id}`,
+      url: selected.link,
       thumbnail: video.image,
-      duration: video.duration || 0,
-      photographer: video.user?.name || "Pexels contributor",
       source: "Pexels",
-      creditURL: video.url,
-      type: "remote"
+      photographer: video.user?.name || "Unknown",
+      creditUrl: video.url || "https://www.pexels.com/",
+      duration: video.duration || 0,
+      type: "remote",
+      file: null
     };
   }).filter(Boolean);
-
-  found.forEach(asset => {
-    if (!assets.some(a => a.id === asset.id)) assets.push(asset);
-  });
-
-  if (sceneId && found.length) {
-    const scene = scenes.find(s => s.id === sceneId);
-    if (scene && !scene.assetId) scene.assetId = found[0].id;
-  }
-
-  if (!automatic) {
-    renderSearchResults(found);
-  }
 }
 
-$("searchBtn").addEventListener("click", async () => {
-  const query = $("searchTerm").value.trim();
-  if (!query) return alert("Enter search words.");
-
-  $("searchBtn").disabled = true;
-
-  try {
-    await searchPexels(query, null, false);
-  } catch (e) {
-    alert(e.message);
-  } finally {
-    $("searchBtn").disabled = false;
+async function searchAllScenes() {
+  if (!scenes.length) {
+    return alert("Create a storyboard first.");
   }
-});
 
-function renderSearchResults(found) {
-  const container = $("stockResults");
-  container.innerHTML = "";
+  setStatus("Searching stock video footage...");
+  let completed = 0;
 
-  found.forEach(asset => {
-    const card = document.createElement("div");
-    card.className = "asset";
-
-    const image = document.createElement("img");
-    image.src = asset.thumbnail;
-    image.style.width = "100%";
-    image.style.height = "110px";
-    image.style.objectFit = "cover";
-
-    const name = document.createElement("p");
-    name.className = "small";
-    name.textContent = asset.name;
-
-    const add = document.createElement("button");
-    add.className = "secondary";
-    add.textContent = "Add to scene";
-
-    add.onclick = () => {
-      const scene = scenes.find(s => !s.assetId);
-      if (!scene) {
-        alert("All scenes already have footage. Change a scene's footage instead.");
-        return;
-      }
-      scene.assetId = asset.id;
+  for (const scene of scenes) {
+    try {
+      scene.searching = true;
       renderScenes();
-      alert("Footage added to " + scene.title);
-    };
 
-    card.append(image, name, add);
-    container.appendChild(card);
-  });
+      const results = await searchPexels(scene.searchQuery);
+
+      results.forEach(asset => {
+        asset.searchSceneId = scene.id;
+        assets.push(asset);
+      });
+
+      if (results.length) {
+        scene.assetId = results[0].id;
+      }
+
+    } catch (error) {
+      console.error(error);
+      scene.searchError = error.message;
+    }
+
+    scene.searching = false;
+    completed++;
+
+    setProgress(20 + completed / scenes.length * 45);
+    renderScenes();
+    renderAssets();
+  }
+
+  setStatus("Footage search finished. Review and edit your scenes.");
 }
 
-// ---------------- USER VIDEO UPLOADS ----------------
+// ==========================================
+// USER VIDEO UPLOADS
+// ==========================================
 
-$("uploads").addEventListener("change", event => {
-  const files = Array.from(event.target.files || []);
-
-  files.forEach(file => {
-    if (!file.type.startsWith("video/")) return;
-
+$("videoUpload").addEventListener("change", event => {
+  for (const file of event.target.files) {
     const asset = {
-      id: "upload-" + crypto.randomUUID(),
+      id: crypto.randomUUID(),
       name: file.name,
-      file,
       url: URL.createObjectURL(file),
+      thumbnail: null,
       source: "Your upload",
-      type: "local"
+      type: "local",
+      file
     };
 
     assets.push(asset);
-  });
+  }
 
-  $("uploadList").textContent =
-    files.length + " file(s) selected. Uploaded videos are stored locally in this browser session.";
-
+  renderAssets();
   renderScenes();
 });
 
-// ---------------- SCENE EDITOR ----------------
+// ==========================================
+// AUDIO UPLOADS
+// ==========================================
+
+$("musicUpload").addEventListener("change", event => {
+  musicFile = event.target.files[0] || null;
+});
+
+$("narrationUpload").addEventListener("change", event => {
+  narrationFile = event.target.files[0] || null;
+});
+
+// ==========================================
+// SCENE MANAGEMENT
+// ==========================================
 
 function normalizeDurations() {
   if (!scenes.length) return;
 
-  const total = scenes.reduce(
-    (sum, s) => sum + Math.max(1, Number(s.duration) || 1), 0
-  );
+  const total = scenes.reduce((sum, scene) => {
+    return sum + Math.max(1, Number(scene.duration) || 1);
+  }, 0);
 
-  let used = 0;
+  let remaining = 60;
 
-  scenes.forEach((scene, i) => {
-    if (i === scenes.length - 1) {
-      scene.duration = 60 - used;
+  scenes.forEach((scene, index) => {
+    if (index === scenes.length - 1) {
+      scene.duration = remaining;
     } else {
-      scene.duration = Math.max(
+      const duration = Math.max(
         1,
-        Math.round(60 * scene.duration / total)
+        Math.round((Math.max(1, Number(scene.duration) || 1) / total) * 60)
       );
-      used += scene.duration;
+
+      scene.duration = Math.min(duration, remaining - (scenes.length - index - 1));
+      remaining -= scene.duration;
     }
   });
 }
 
-function renderScenes() {
-  const container = $("scenes");
-  container.innerHTML = "";
-
-  scenes.forEach((scene, index) => {
-    const div = document.createElement("div");
-    div.className = "scene";
-
-    const title = document.createElement("div");
-    title.className = "scene-head";
-
-    const heading = document.createElement("strong");
-    heading.textContent = `${index+1}. ${scene.title}`;
-
-    const remove = document.createElement("button");
-    remove.className = "danger";
-    remove.textContent = "Remove";
-    remove.onclick = () => {
-      scenes.splice(index,1);
-      normalizeDurations();
-      renderScenes();
-    };
-
-    title.append(heading, remove);
-
-    const description = document.createElement("p");
-    description.className = "small";
-    description.textContent = scene.description;
-
-    const durationLabel = document.createElement("label");
-    durationLabel.textContent = "Scene duration (seconds)";
-
-    const duration = document.createElement("input");
-    duration.type = "number";
-    duration.min = "1";
-    duration.max = "60";
-    duration.value = scene.duration;
-
-    duration.onchange = () => {
-      scene.duration = Math.max(1, Number(duration.value) || 1);
-      normalizeDurations();
-      renderScenes();
-    };
-
-    const sourceLabel = document.createElement("label");
-    sourceLabel.textContent = "Select video footage";
-
-    const select = document.createElement("select");
-
-    const empty = document.createElement("option");
-    empty.value = "";
-    empty.textContent = "Choose footage...";
-    select.appendChild(empty);
-
-    assets.forEach(asset => {
-      const option = document.createElement("option");
-      option.value = asset.id;
-      option.textContent = `${asset.name} (${asset.source})`;
-      select.appendChild(option);
-    });
-
-    select.value = scene.assetId;
-    select.onchange = () => {
-      scene.assetId = select.value;
-    };
-
-    const search = document.createElement("button");
-    search.className = "secondary full";
-    search.textContent = "Find more footage for this scene";
-    search.onclick = async () => {
-      try {
-        await searchPexels(scene.query, scene.id);
-        renderScenes();
-      } catch (e) {
-        alert(e.message);
-      }
-    };
-
-    div.append(
-      title, description, durationLabel,
-      duration, sourceLabel, select, search
-    );
-
-    container.appendChild(div);
-  });
-
-  const total = scenes.reduce(
-    (sum, s) => sum + Number(s.duration), 0
-  );
-
-  const totalLabel = document.createElement("p");
-  totalLabel.className = "small";
-  totalLabel.textContent = "Total movie duration: " + total + " seconds";
-  container.appendChild(totalLabel);
-}
-
-$("addScene").addEventListener("click", () => {
-  if (scenes.length >= 20) return alert("Maximum 20 scenes.");
-
+function addScene() {
   scenes.push({
     id: crypto.randomUUID(),
     title: "New scene",
-    description: "Add your video footage.",
-    query: $("prompt").value,
-    narration: "",
+    description: "",
+    searchQuery: "cinematic landscape",
     duration: 10,
-    assetId: ""
+    narration: "",
+    assetId: null
   });
 
   normalizeDurations();
   renderScenes();
-});
-
-// ---------------- AI NARRATION ----------------
-
-async function generateVoice() {
-  const key = $("voiceKey").value.trim();
-  const voiceId = $("voiceId").value.trim();
-  const text = $("script").value.trim();
-
-  if (!key || !voiceId) {
-    throw new Error("Enter your ElevenLabs API key and Voice ID.");
-  }
-  if (!text) throw new Error("Your narration script is empty.");
-
-  $("voiceStatus").textContent = "Generating narration audio...";
-
-  const response = await fetch(
-    `https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(voiceId)}`,
-    {
-      method: "POST",
-      headers: {
-        "xi-api-key": key,
-        "Content-Type": "application/json",
-        "Accept": "audio/mpeg"
-      },
-      body: JSON.stringify({
-        text,
-        model_id: "eleven_multilingual_v2",
-        voice_settings: {
-          stability: 0.5,
-          similarity_boost: 0.75
-        }
-      })
-    }
-  );
-
-  if (!response.ok) {
-    throw new Error("Voice API error: " + await response.text());
-  }
-
-  narrationBlob = await response.blob();
-
-  $("voiceStatus").textContent = "AI narration generated successfully.";
 }
 
-$("makeVoice").addEventListener("click", async () => {
-  try {
-    await generateVoice();
-  } catch (e) {
-    $("voiceStatus").textContent = e.message;
-    alert(e.message);
-  }
-});
+function removeScene(id) {
+  scenes = scenes.filter(scene => scene.id !== id);
+  normalizeDurations();
+  renderScenes();
+}
 
-$("refreshVoice").addEventListener("click", async () => {
-  try {
-    await generateVoice();
-  } catch (e) {
-    alert(e.message);
-  }
-});
+function updateScene(id, field, value) {
+  const scene = scenes.find(item => item.id === id);
+  if (!scene) return;
 
-// ---------------- FFMPEG INITIALIZATION ----------------
+  scene[field] = value;
+
+  if (field === "duration") {
+    scene.duration = Math.max(1, Number(value) || 1);
+    normalizeDurations();
+  }
+
+  renderScenes();
+}
+
+function renderScenes() {
+  const container = $("sceneList");
+  container.innerHTML = "";
+
+  scenes.forEach((scene, index) => {
+    const sceneAssets = assets.filter(asset =>
+      asset.searchSceneId === scene.id || asset.type === "local"
+    );
+
+    const box = document.createElement("div");
+    box.className = "scene";
+
+    box.innerHTML = `
+      <div class="scene-top">
+        <h3>Scene ${index + 1}: ${escapeHTML(scene.title)}</h3>
+        <small>${scene.duration} seconds</small>
+      </div>
+
+      <label>Scene title</label>
+      <input data-field="title" value="${escapeHTML(scene.title)}">
+
+      <label>What should appear?</label>
+      <textarea data-field="description">${escapeHTML(scene.description)}</textarea>
+
+      <label>Footage search keywords</label>
+      <input data-field="searchQuery" value="${escapeHTML(scene.searchQuery)}">
+
+      <label>Scene narration</label>
+      <textarea data-field="narration">${escapeHTML(scene.narration)}</textarea>
+
+      <label>Duration in seconds</label>
+      <input data-field="duration" type="number" min="1" max="60"
+        value="${scene.duration}">
+
+      <label>Selected footage</label>
+      <select data-field="assetId">
+        <option value="">Choose footage</option>
+        ${sceneAssets.map(asset => `
+          <option value="${asset.id}"
+            ${scene.assetId === asset.id ? "selected" : ""}>
+            ${escapeHTML(asset.name)} (${escapeHTML(asset.source)})
+          </option>
+        `).join("")}
+      </select>
+
+      <div class="row">
+        <button class="secondary" data-action="search">Search this scene</button>
+        <button class="danger" data-action="remove">Remove scene</button>
+      </div>
+
+      ${scene.searching ? "<small>Searching footage...</small>" : ""}
+      ${scene.searchError ? `<small>${escapeHTML(scene.searchError)}</small>` : ""}
+    `;
+
+    box.querySelectorAll("[data-field]").forEach(input => {
+      input.addEventListener("change", () => {
+        updateScene(scene.id, input.dataset.field, input.value);
+      });
+    });
+
+    box.querySelector('[data-action="search"]').onclick = async () => {
+      try {
+        scene.searching = true;
+        renderScenes();
+
+        const results = await searchPexels(scene.searchQuery);
+        results.forEach(asset => {
+          asset.searchSceneId = scene.id;
+          assets.push(asset);
+        });
+
+        if (results.length) scene.assetId = results[0].id;
+
+        renderAssets();
+        renderScenes();
+      } catch (error) {
+        scene.searching = false;
+        scene.searchError = error.message;
+        renderScenes();
+      }
+    };
+
+    box.querySelector('[data-action="remove"]').onclick = () => {
+      removeScene(scene.id);
+    };
+
+    container.appendChild(box);
+  });
+}
+
+// ==========================================
+// VIDEO LIBRARY
+// ==========================================
+
+function renderAssets() {
+  const container = $("assetList");
+  container.innerHTML = "";
+
+  assets.forEach(asset => {
+    const card = document.createElement("div");
+    card.className = "asset";
+
+    card.innerHTML = `
+      ${asset.thumbnail
+        ? `<img src="${escapeHTML(asset.thumbnail)}" alt="">`
+        : `<div style="height:115px;display:grid;place-items:center">VIDEO</div>`}
+      <div class="asset-info">
+        <strong>${escapeHTML(asset.name)}</strong><br>
+        <small>${escapeHTML(asset.source)}</small>
+        ${asset.photographer
+          ? `<br><small>By ${escapeHTML(asset.photographer)}</small>` : ""}
+        ${asset.creditUrl
+          ? `<br><a href="${escapeHTML(asset.creditUrl)}" target="_blank" rel="noopener">Source</a>` : ""}
+        <button class="secondary">Use in a scene</button>
+      </div>
+    `;
+
+    card.querySelector("button").onclick = () => {
+      if (!scenes.length) return alert("Create scenes first.");
+
+      const target = scenes.find(scene => !scene.assetId) || scenes[0];
+      target.assetId = asset.id;
+
+      if (asset.searchSceneId) {
+        const matching = scenes.find(s => s.id === asset.searchSceneId);
+        if (matching) matching.assetId = asset.id;
+      }
+
+      renderScenes();
+    };
+
+    container.appendChild(card);
+  });
+}
+
+// ==========================================
+// FFMPEG LOADING
+// ==========================================
 
 async function loadFFmpeg() {
-  if (ffmpegReady) return;
+  if (ffmpegLoaded) return;
 
   if (!window.FFmpegWASM || !window.FFmpegUtil) {
     throw new Error("FFmpeg libraries did not load. Check your internet connection.");
   }
 
-  exportStatus("Loading video editor. First load may download approximately 30 MB...");
-
-  const {FFmpeg} = window.FFmpegWASM;
-  const {toBlobURL} = window.FFmpegUtil;
+  const { FFmpeg } = FFmpegWASM;
+  const { toBlobURL } = FFmpegUtil;
 
   ffmpeg = new FFmpeg();
 
-  ffmpeg.on("progress", ({progress}) => {
-    exportStatus("Processing video: " + Math.round(progress * 100) + "%");
+  ffmpeg.on("progress", ({ progress }) => {
+    setExportProgress(Math.round(progress * 100));
   });
 
-  const base = "https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.10/dist/umd";
+  const baseURL =
+    "https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.10/dist/umd";
+
+  setExportStatus("Loading video processing engine...");
 
   await ffmpeg.load({
-    coreURL: await toBlobURL(base + "/ffmpeg-core.js", "text/javascript"),
-    wasmURL: await toBlobURL(base + "/ffmpeg-core.wasm", "application/wasm")
+    coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, "text/javascript"),
+    wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, "application/wasm")
   });
 
-  ffmpegReady = true;
-  exportStatus("Video editor loaded.");
+  ffmpegLoaded = true;
 }
 
-// ---------------- VIDEO EXPORT ----------------
+// ==========================================
+// FILE HELPERS
+// ==========================================
 
-async function getAssetBytes(asset) {
-  if (asset.file) {
+async function assetToBytes(asset) {
+  if (asset.type === "local" && asset.file) {
     return new Uint8Array(await asset.file.arrayBuffer());
   }
 
   const response = await fetch(asset.url);
-  if (!response.ok) throw new Error("Unable to download " + asset.name);
+
+  if (!response.ok) {
+    throw new Error(
+      "Could not download stock footage. It may block browser access. " +
+      "Download permitted footage and upload it instead."
+    );
+  }
 
   return new Uint8Array(await response.arrayBuffer());
 }
 
-async function writeAudio(file, filename) {
-  await ffmpeg.writeFile(
-    filename,
-    new Uint8Array(await file.arrayBuffer())
-  );
+function getDimensions() {
+  const orientation = $("orientation").value;
+
+  if (orientation === "portrait") return [360, 640];
+  if (orientation === "square") return [360, 360];
+
+  return [640, 360];
 }
 
-$("export").addEventListener("click", async () => {
-  const button = $("export");
-  button.disabled = true;
+// ==========================================
+// AUTOMATIC VIDEO COMPILER
+// ==========================================
+
+async function exportVideo() {
+  if (!scenes.length) return alert("Create your storyboard first.");
+
+  const selectedScenes = scenes.filter(scene =>
+    assets.some(asset => asset.id === scene.assetId)
+  );
+
+  if (selectedScenes.length !== scenes.length) {
+    return alert("Every scene needs selected footage before exporting.");
+  }
+
+  $("exportBtn").disabled = true;
+  setExportProgress(0);
 
   try {
-    if (!scenes.length) throw new Error("Create a storyboard first.");
-
-    const missing = scenes.filter(s => !s.assetId);
-    if (missing.length) {
-      throw new Error("Please select video footage for every scene.");
-    }
-
-    const durationTotal = scenes.reduce(
-      (sum,s) => sum + Number(s.duration), 0
-    );
-
-    if (durationTotal !== 60) {
-      throw new Error("Scene durations must total exactly 60 seconds.");
-    }
-
+    normalizeDurations();
     await loadFFmpeg();
 
-    exportStatus("Preparing your scenes...");
-    const concatLines = [];
+    const [width, height] = getDimensions();
+    const sceneFiles = [];
 
-    const format = $("format").value;
-    let width = 640, height = 360;
-
-    if (format === "portrait") {
-      width = 360; height = 640;
-    } else if (format === "square") {
-      width = 360; height = 360;
-    }
-
+    // Create a video segment for each scene.
     for (let i = 0; i < scenes.length; i++) {
       const scene = scenes[i];
       const asset = assets.find(a => a.id === scene.assetId);
 
-      if (!asset) throw new Error("Missing footage for " + scene.title);
+      setExportStatus(
+        `Preparing scene ${i + 1} of ${scenes.length}: ${scene.title}`
+      );
 
-      exportStatus(`Preparing scene ${i+1} of ${scenes.length}...`);
-
-      const inputName = `input_${i}.bin`;
+      const bytes = await assetToBytes(asset);
+      const inputName = `input_${i}.mp4`;
       const outputName = `scene_${i}.mp4`;
 
-      const bytes = await getAssetBytes(asset);
       await ffmpeg.writeFile(inputName, bytes);
 
-      const seconds = Math.max(1, Number(scene.duration));
+      const duration = Math.max(1, Number(scene.duration) || 1);
 
-      await ffmpeg.exec([
+      const result = await ffmpeg.exec([
         "-stream_loop", "-1",
         "-i", inputName,
-        "-t", String(seconds),
+        "-t", String(duration),
         "-vf",
-        `scale=${width}:${height}:force_original_aspect_ratio=decrease,pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=24`,
+        `scale=${width}:${height}:force_original_aspect_ratio=decrease,` +
+        `pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=24`,
         "-an",
         "-c:v", "libx264",
         "-preset", "ultrafast",
-        "-crf", "30",
         "-pix_fmt", "yuv420p",
         "-movflags", "+faststart",
         outputName
       ]);
 
-      concatLines.push(`file '${outputName}'`);
+      if (result !== 0) {
+        throw new Error("Could not compile scene " + (i + 1));
+      }
+
+      sceneFiles.push(outputName);
+
+      setExportProgress((i + 1) / scenes.length * 55);
     }
 
-    exportStatus("Combining scenes...");
+    // Join all scene clips.
+    setExportStatus("Combining scenes...");
+
+    const concatText = sceneFiles
+      .map(name => `file '${name}'`)
+      .join("\n");
 
     await ffmpeg.writeFile(
-      "list.txt",
-      new TextEncoder().encode(concatLines.join("\n"))
+      "concat.txt",
+      new TextEncoder().encode(concatText)
     );
 
-    await ffmpeg.exec([
+    let result = await ffmpeg.exec([
       "-f", "concat",
       "-safe", "0",
-      "-i", "list.txt",
+      "-i", "concat.txt",
       "-c", "copy",
-      "combined.mp4"
+      "joined.mp4"
     ]);
 
-    const music = $("music").files[0];
-    const uploadedNarration = $("narration").files[0];
-    const voiceFile = uploadedNarration || narrationBlob;
-
-    exportStatus("Adding music and narration...");
-
-    const args = ["-i", "combined.mp4"];
-    let audioCount = 0;
-
-    if (music) {
-      await writeAudio(music, "music.mp3");
-      args.push("-stream_loop", "-1", "-i", "music.mp3");
-      audioCount++;
+    if (result !== 0) {
+      throw new Error("Could not combine the scenes.");
     }
 
-    if (voiceFile) {
-      await writeAudio(voiceFile, "narration.mp3");
-      args.push("-i", "narration.mp3");
-      audioCount++;
-    }
+    // Mix uploaded audio.
+    setExportStatus("Adding audio and preparing final MP4...");
 
-    args.push("-t", "60");
+    const args = ["-i", "joined.mp4"];
+    let audioIndex = 1;
+    let musicIndex = null;
+    let narrationIndex = null;
 
-    if (music && voiceFile) {
-      args.push(
-        "-filter_complex",
-        "[1:a]volume=0.20[m];[2:a]volume=1.0[n];[m][n]amix=inputs=2:duration=longest:dropout_transition=2[a]",
-        "-map", "0:v:0",
-        "-map", "[a]"
+    if (musicFile) {
+      await ffmpeg.writeFile(
+        "music",
+        new Uint8Array(await musicFile.arrayBuffer())
       );
-    } else if (music || voiceFile) {
-      args.push("-map", "0:v:0", "-map", "1:a:0");
-      if (music) args.push("-af", "volume=0.20");
+
+      args.push("-stream_loop", "-1", "-i", "music");
+      musicIndex = audioIndex++;
+    }
+
+    if (narrationFile) {
+      await ffmpeg.writeFile(
+        "narration",
+        new Uint8Array(await narrationFile.arrayBuffer())
+      );
+
+      args.push("-i", "narration");
+      narrationIndex = audioIndex++;
+    }
+
+    let filter = "";
+    let audioMap = null;
+
+    if (musicIndex !== null && narrationIndex !== null) {
+      filter =
+        `[${musicIndex}:a]volume=0.18[m];` +
+        `[${narrationIndex}:a]volume=1.0[n];` +
+        `[m][n]amix=inputs=2:duration=first:dropout_transition=2[a]`;
+
+      audioMap = "[a]";
+    } else if (musicIndex !== null) {
+      filter = `[${musicIndex}:a]volume=0.22[a]`;
+      audioMap = "[a]";
+    } else if (narrationIndex !== null) {
+      filter = `[${narrationIndex}:a]volume=1.0[a]`;
+      audioMap = "[a]";
+    }
+
+    args.push("-map", "0:v");
+
+    if (filter) {
+      args.push("-filter_complex", filter);
+      args.push("-map", audioMap);
+      args.push("-c:a", "aac", "-b:a", "128k");
     } else {
-      args.push("-map", "0:v:0", "-an");
+      args.push("-an");
     }
 
     args.push(
+      "-t", "60",
       "-c:v", "libx264",
       "-preset", "ultrafast",
-      "-crf", "30",
       "-pix_fmt", "yuv420p",
-      "-r", "24",
-      "-c:a", "aac",
-      "-b:a", "96k",
       "-movflags", "+faststart",
       "paperhouse_final.mp4"
     );
 
-    await ffmpeg.exec(args);
+    result = await ffmpeg.exec(args);
 
-    exportStatus("Preparing MP4 download...");
+    if (result !== 0) {
+      throw new Error(
+        "Final export failed. The selected FFmpeg build may not support this encoder."
+      );
+    }
 
-    const result = await ffmpeg.readFile("paperhouse_final.mp4");
+    const output = await ffmpeg.readFile("paperhouse_final.mp4");
 
-    const blob = new Blob([result], {type:"video/mp4"});
+    const blob = new Blob([output], {type: "video/mp4"});
 
-    if (outputURL) URL.revokeObjectURL(outputURL);
-    outputURL = URL.createObjectURL(blob);
+    if (finalVideoURL) URL.revokeObjectURL(finalVideoURL);
 
-    $("preview").src = outputURL;
-    $("download").href = outputURL;
-    $("resultPanel").classList.remove("hidden");
+    finalVideoURL = URL.createObjectURL(blob);
 
-    exportStatus("Your 60-second movie is ready!");
+    $("preview").src = finalVideoURL;
 
-    $("resultPanel").scrollIntoView({behavior:"smooth"});
+    $("downloadArea").innerHTML = `
+      <a href="${finalVideoURL}" download="Paperhouse-Inc-Video.mp4">
+        ⬇ Download Your Finished MP4
+      </a>
+    `;
+
+    setExportProgress(100);
+    setExportStatus("Video compilation completed!");
 
   } catch (error) {
     console.error(error);
-    exportStatus("Export error: " + error.message);
+    setExportStatus("Export error: " + error.message);
     alert(error.message);
   } finally {
-    button.disabled = false;
+    $("exportBtn").disabled = false;
   }
-});
+}
