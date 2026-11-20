@@ -1,290 +1,271 @@
 
+const API = "";
+
+const $ = (id) => document.getElementById(id);
+
 let currentPlan = null;
 
-const $ = id => document.getElementById(id);
+async function checkServer() {
+  try {
+    const response = await fetch(`${API}/api/health`);
+    const data = await response.json();
 
-function setStatus(message, error = false) {
-  $("status").textContent = message;
-  $("status").style.color = error ? "#ff8888" : "#aaaabd";
-}
+    $("serverStatus").textContent =
+      response.ok && data.geminiConfigured
+        ? "AI Connected"
+        : "Server Online · Check AI Key";
 
-async function api(url, options = {}) {
-  const response = await fetch(url, options);
-  const data = await response.json();
-
-  if (!response.ok) {
-    throw new Error(data.error || "Something went wrong.");
+    $("serverStatus").className =
+      response.ok && data.geminiConfigured
+        ? "status online"
+        : "status warning";
+  } catch (error) {
+    $("serverStatus").textContent = "Server Offline";
+    $("serverStatus").className = "status offline";
   }
-
-  return data;
 }
 
-function formatTime(seconds) {
-  const s = Math.floor(Number(seconds) || 0);
-  return `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
+function showMessage(id, message, error = false) {
+  const element = $(id);
+  element.textContent = message;
+  element.className = error ? "message error" : "message";
 }
 
-function srtTime(seconds) {
-  const ms = Math.round(Number(seconds || 0) * 1000);
-
-  const h = String(Math.floor(ms / 3600000)).padStart(2, "0");
-  const m = String(Math.floor(ms % 3600000 / 60000)).padStart(2, "0");
-  const s = String(Math.floor(ms % 60000 / 1000)).padStart(2, "0");
-  const z = String(ms % 1000).padStart(3, "0");
-
-  return `${h}:${m}:${s},${z}`;
+function escapeHTML(value) {
+  return String(value ?? "").replace(/[&<>"']/g, char => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;"
+  })[char]);
 }
 
-// GENERATE STORYBOARD
-
-$("generateBtn").addEventListener("click", async () => {
+async function generateStoryboard() {
   const prompt = $("prompt").value.trim();
 
   if (!prompt) {
-    setStatus("Please enter your video prompt.", true);
+    showMessage("message", "Please describe your video idea.", true);
     return;
   }
 
   const button = $("generateBtn");
   button.disabled = true;
-
-  setStatus("Gemini AI is developing your story...");
+  button.textContent = "AI Processing...";
+  showMessage("message", "Understanding your prompt and creating scenes...");
 
   try {
-    const result = await api("/api/plan", {
+    const response = await fetch(`${API}/api/plan`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         prompt,
         duration: Number($("duration").value),
-        resolution: $("resolution").value,
-        style: $("style").value,
-        language: $("language").value,
-        captionsEnabled: $("captionsEnabled").checked
+        captionsEnabled: $("captions").checked
       })
     });
 
-    currentPlan = result.plan;
+    const data = await response.json();
 
-    renderScenes(currentPlan);
+    if (!response.ok) {
+      throw new Error(data.error || "Unable to generate storyboard.");
+    }
 
-    setStatus(
-      `Storyboard created successfully. ${currentPlan.scenes.length} scenes generated.`
-    );
+    currentPlan = data.plan || data;
+
+    if (!Array.isArray(currentPlan.scenes) || !currentPlan.scenes.length) {
+      throw new Error("The AI did not return any scenes.");
+    }
+
+    renderStoryboard(currentPlan);
+
+    $("storyboardSection").classList.remove("hidden");
+    $("compileSection").classList.remove("hidden");
+
+    showMessage("message", "Your AI storyboard is ready!");
+    $("storyboardSection").scrollIntoView({ behavior: "smooth" });
 
   } catch (error) {
-    setStatus(error.message, true);
+    showMessage("message", error.message, true);
   } finally {
     button.disabled = false;
+    button.textContent = "Generate AI Storyboard";
   }
-});
+}
 
-// DISPLAY SCENES AND CAPTIONS
+function renderStoryboard(plan) {
+  $("videoInfo").innerHTML = `
+    <h3>${escapeHTML(plan.title || "Untitled Video")}</h3>
+    <p class="muted">${escapeHTML(plan.summary || "")}</p>
+    <p class="muted">Scenes: ${plan.scenes.length}</p>
+  `;
 
-function renderScenes(plan) {
-  const container = $("sceneList");
+  $("scenes").innerHTML = plan.scenes.map((scene, index) => `
+    <article class="scene">
+      <div class="scene-top">
+        <strong>SCENE ${index + 1}</strong>
+        <span>${escapeHTML(scene.start ?? "")} - ${escapeHTML(scene.end ?? "")}</span>
+      </div>
 
-  container.innerHTML = "";
+      <h3>${escapeHTML(scene.title || `Scene ${index + 1}`)}</h3>
 
-  const heading = document.createElement("div");
-  heading.className = "scene";
+      <p><b>Visual direction</b><br>
+      ${escapeHTML(scene.visualPrompt || scene.visual || "")}</p>
 
-  const project = document.createElement("div");
-  project.textContent = "PROJECT";
+      <p><b>Dialogue</b><br>
+      ${escapeHTML(scene.dialogue || "")}</p>
 
-  const details = document.createElement("div");
+      <p><b>Caption</b><br>
+      ${escapeHTML(scene.caption || "")}</p>
 
-  const title = document.createElement("h3");
-  title.textContent = plan.title || "AI Video Project";
+      <p><b>Sound design</b><br>
+      ${escapeHTML(scene.sound || "")}</p>
 
-  const summary = document.createElement("p");
-  summary.textContent = plan.summary || "";
+      <button class="secondary copy-btn" data-copy="${index}">
+        Copy Scene Prompt
+      </button>
+    </article>
+  `).join("");
 
-  details.append(title, summary);
-  heading.append(project, details);
+  document.querySelectorAll(".copy-btn").forEach(button => {
+    button.addEventListener("click", async () => {
+      const scene = currentPlan.scenes[Number(button.dataset.copy)];
 
-  container.appendChild(heading);
+      const text = [
+        scene.title,
+        scene.visualPrompt || scene.visual,
+        scene.dialogue,
+        scene.caption,
+        scene.sound
+      ].filter(Boolean).join("\n\n");
 
-  plan.scenes.forEach(scene => {
-    const article = document.createElement("article");
-    article.className = "scene";
+      try {
+        await navigator.clipboard.writeText(text);
+        button.textContent = "Copied!";
+        setTimeout(() => button.textContent = "Copy Scene Prompt", 1500);
+      } catch {
+        showMessage("message", "Unable to copy. Please select the scene text manually.", true);
+      }
+    });
+  });
+}
 
-    const time = document.createElement("div");
-    time.className = "scene-time";
-    time.textContent =
-      `${formatTime(scene.start)} - ${formatTime(scene.end)}`;
+function exportSRT() {
+  if (!currentPlan || !currentPlan.scenes) {
+    showMessage("message", "Generate a storyboard first.", true);
+    return;
+  }
 
-    const content = document.createElement("div");
+  const toSrtTime = (value) => {
+    const seconds = Number(value) || 0;
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const secs = Math.floor(seconds % 60);
+    const millis = Math.round((seconds % 1) * 1000);
 
-    const name = document.createElement("h3");
-    name.textContent = `SCENE ${scene.number}`;
+    return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(secs).padStart(2, "0")},${String(millis).padStart(3, "0")}`;
+  };
 
-    const visual = document.createElement("p");
-    visual.textContent = scene.visual_prompt || "";
+  const subtitles = currentPlan.scenes
+    .filter(scene => scene.caption)
+    .map((scene, index) => {
+      return [
+        index + 1,
+        `${toSrtTime(scene.start)} --> ${toSrtTime(scene.end)}`,
+        scene.caption,
+        ""
+      ].join("\n");
+    }).join("\n");
 
-    const dialogue = document.createElement("p");
-    dialogue.textContent = `Dialogue: ${scene.dialogue || "None"}`;
-
-    const caption = document.createElement("p");
-    caption.className = "caption";
-    caption.textContent =
-      `CC: ${scene.caption || scene.dialogue || ""}`;
-
-    const sound = document.createElement("p");
-    sound.textContent = `Sound: ${scene.sound || "None"}`;
-
-    content.append(
-      name,
-      visual,
-      dialogue,
-      caption,
-      sound
-    );
-
-    article.append(time, content);
-    container.appendChild(article);
+  const blob = new Blob([subtitles], {
+    type: "text/plain;charset=utf-8"
   });
 
-  $("exportSrtBtn").disabled = false;
-  $("compileBtn").disabled = false;
-}
-
-// DOWNLOAD CAPTIONS
-
-function createSRT() {
-  if (!currentPlan) return "";
-
-  return currentPlan.scenes.map((scene, index) => {
-    return `${index + 1}
-${srtTime(scene.start)} --> ${srtTime(scene.end)}
-${scene.caption || scene.dialogue || ""}
-`;
-  }).join("\n");
-}
-
-function downloadFile(content, filename, type) {
-  const blob = new Blob([content], { type });
   const url = URL.createObjectURL(blob);
-
   const link = document.createElement("a");
+
   link.href = url;
-  link.download = filename;
-
-  document.body.appendChild(link);
+  link.download = "paperhouse-captions.srt";
   link.click();
-  link.remove();
 
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  URL.revokeObjectURL(url);
 }
 
-$("exportSrtBtn").addEventListener("click", () => {
-  if (!currentPlan) return;
+async function compileVideo() {
+  if (!currentPlan) {
+    showMessage("compileMessage", "Create a storyboard first.", true);
+    return;
+  }
 
-  downloadFile(
-    createSRT(),
-    "paperhouse-captions.srt",
-    "application/x-subrip"
-  );
-});
-
-// COMPILE VIDEO
-
-$("compileBtn").addEventListener("click", async () => {
-  const files = $("videoFiles").files;
+  const files = $("clips").files;
 
   if (!files.length) {
-    $("compileStatus").textContent =
-      "Please upload your generated video clips first.";
+    showMessage("compileMessage", "Please upload your scene video clips.", true);
+    return;
+  }
+
+  if (files.length !== currentPlan.scenes.length) {
+    showMessage(
+      "compileMessage",
+      `Upload exactly ${currentPlan.scenes.length} clips, one for each scene.`,
+      true
+    );
     return;
   }
 
   const button = $("compileBtn");
   button.disabled = true;
+  button.textContent = "Compiling Video...";
 
-  $("compileStatus").textContent =
-    "Uploading and compiling your video...";
+  showMessage("compileMessage", "Processing clips and creating your MP4...");
 
   try {
-    const form = new FormData();
+    const formData = new FormData();
 
-    for (const file of files) {
-      form.append("clips", file);
-    }
-
-    form.append("resolution", $("resolution").value);
-
-    const captions = $("burnCaptions").checked && currentPlan
-      ? currentPlan.scenes.map(scene => ({
-          start: scene.start,
-          end: scene.end,
-          caption: scene.caption || scene.dialogue || ""
-        }))
-      : [];
-
-    form.append("captions", JSON.stringify(captions));
-
-    const result = await api("/api/compile", {
-      method: "POST",
-      body: form
+    Array.from(files).forEach(file => {
+      formData.append("clips", file);
     });
 
-    // VIDEO PREVIEW
+    formData.append("quality", $("quality").value);
+    formData.append("captionsEnabled", String($("captions").checked));
+    formData.append("plan", JSON.stringify(currentPlan));
 
-    const preview = $("videoPreview");
-    preview.innerHTML = "";
+    const response = await fetch(`${API}/api/compile`, {
+      method: "POST",
+      body: formData
+    });
 
-    const video = document.createElement("video");
-    video.controls = true;
-    video.playsInline = true;
-    video.src = result.videoUrl;
+    const data = await response.json();
 
-    preview.appendChild(video);
-
-    // DOWNLOAD MP4
-
-    const download = $("downloadBtn");
-    download.href = result.videoUrl;
-    download.classList.remove("disabled");
-    download.download = "paperhouse-ai-video.mp4";
-
-    // DOWNLOAD SRT
-
-    if (result.captionsUrl) {
-      const srt = $("downloadSrtBtn");
-      srt.href = result.captionsUrl;
-      srt.classList.remove("disabled");
-      srt.download = "paperhouse-captions.srt";
+    if (!response.ok) {
+      throw new Error(data.error || "Video compilation failed.");
     }
 
-    $("compileStatus").textContent =
-      "Video compilation complete! Your MP4 is ready.";
+    const videoUrl = data.videoUrl || data.url;
+
+    if (!videoUrl) {
+      throw new Error("The server did not return a video download URL.");
+    }
+
+    const finalUrl = new URL(videoUrl, window.location.origin).href;
+
+    $("preview").src = finalUrl;
+    $("downloadBtn").href = finalUrl;
+    $("result").classList.remove("hidden");
+
+    showMessage("compileMessage", "Your MP4 video is ready!");
+    $("result").scrollIntoView({ behavior: "smooth" });
 
   } catch (error) {
-    $("compileStatus").textContent = error.message;
+    showMessage("compileMessage", error.message, true);
   } finally {
     button.disabled = false;
-  }
-});
-
-// SERVER CONNECTION
-
-async function checkConnection() {
-  try {
-    const result = await api("/api/health");
-
-    $("connectionStatus").textContent =
-      `Server connected | Gemini: ${
-        result.geminiConfigured ? "Connected" : "API key missing"
-      } | Video engine: ${
-        result.videoProviderConfigured ? "Configured" : "Not connected"
-      }`;
-
-  } catch {
-    $("connectionStatus").textContent =
-      "Server offline. Start the Node.js backend.";
+    button.textContent = "Compile MP4 Video";
   }
 }
 
-checkConnection();
+$("generateBtn").addEventListener("click", generateStoryboard);
+$("exportSrtBtn").addEventListener("click", exportSRT);
+$("compileBtn").addEventListener("click", compileVideo);
+
+checkServer();
