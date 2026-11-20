@@ -2,336 +2,233 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="theme-color" content="#0b1019">
-<title>ClipForge Studio</title>
-
-<style>
-* {
-    box-sizing: border-box;
-}
-
-body {
-    margin: 0;
-    font-family: Arial, sans-serif;
-    background: #0b1019;
-    color: #f1f5f9;
-}
-
-header {
-    padding: 18px;
-    background: #111827;
-    border-bottom: 1px solid #263244;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-.logo {
-    font-size: 21px;
-    font-weight: bold;
-    color: #45d6b5;
-}
-
-.container {
-    max-width: 900px;
-    margin: auto;
-    padding: 15px;
-}
-
-.card {
-    background: #151d2b;
-    border: 1px solid #263449;
-    border-radius: 16px;
-    padding: 16px;
-    margin-bottom: 15px;
-}
-
-h2 {
-    font-size: 17px;
-    margin-top: 0;
-}
-
-button, select, input {
-    font-size: 15px;
-}
-
-button {
-    border: 0;
-    border-radius: 10px;
-    padding: 13px;
-    background: #20b99b;
-    color: #061510;
-    font-weight: bold;
-    cursor: pointer;
-}
-
-button:disabled {
-    opacity: 0.45;
-    cursor: not-allowed;
-}
-
-.secondary {
-    background: #293548;
-    color: white;
-}
-
-.danger {
-    background: #ef4444;
-    color: white;
-}
-
-input[type="file"] {
-    width: 100%;
-    padding: 12px;
-    background: #202b3b;
-    border-radius: 10px;
-    color: white;
-}
-
-video {
-    width: 100%;
-    max-height: 420px;
-    background: #000;
-    border-radius: 12px;
-    margin-top: 10px;
-}
-
-label {
-    display: block;
-    margin-top: 14px;
-    margin-bottom: 7px;
-    color: #b8c5d6;
-}
-
-input[type="text"],
-input[type="number"],
-select {
-    width: 100%;
-    background: #202b3b;
-    color: white;
-    border: 1px solid #36465b;
-    border-radius: 9px;
-    padding: 12px;
-    outline: none;
-}
-
-input[type="range"] {
-    width: 100%;
-    accent-color: #20b99b;
-}
-
-.grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 12px;
-}
-
-.btn-row {
-    display: flex;
-    gap: 10px;
-    flex-wrap: wrap;
-    margin-top: 15px;
-}
-
-.btn-row button {
-    flex: 1;
-    min-width: 120px;
-}
-
-.small {
-    font-size: 12px;
-    color: #94a3b8;
-}
-
-#status {
-    margin-top: 12px;
-    color: #45d6b5;
-    font-size: 14px;
-    word-break: break-word;
-}
-
-#progress {
-    width: 100%;
-    height: 10px;
-    border-radius: 20px;
-    margin-top: 15px;
-    accent-color: #20b99b;
-}
-
-#downloadLink {
-    display: block;
-    padding: 15px;
-    background: #2563eb;
-    color: white;
-    text-align: center;
-    border-radius: 10px;
-    text-decoration: none;
-    margin-top: 12px;
-    font-weight: bold;
-}
-
-#captionPreview {
-    color: #fff;
-    font-size: 15px;
-    background: #293548;
-    padding: 12px;
-    border-radius: 8px;
-    margin-top: 8px;
-    min-height: 42px;
-    overflow-wrap: anywhere;
-}
-
-footer {
-    text-align: center;
-    color: #718096;
-    padding: 25px;
-    font-size: 12px;
-}
-
-@media(max-width:500px) {
-    .grid {
-        grid-template-columns: 1fr;
-    }
-
-    header {
-        padding: 14px;
-    }
-
-    .logo {
-        font-size: 18px;
-    }
-}
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#10131d">
+  <title>Memora AI</title>
+  <link rel="stylesheet" href="style.css">
 </head>
-
 <body>
 
-<header>
-    <div class="logo">✦ CLIPFORGE STUDIO</div>
-    <div class="small">Offline Video Editor</div>
-</header>
+<div class="app">
 
-<div class="container">
-
-    <!-- IMPORT -->
-    <div class="card">
-        <h2>📁 Import Video</h2>
-        <input type="file" id="videoInput" accept="video/*">
-        <p class="small">Your video stays on your device.</p>
-
-        <video id="videoPreview" controls playsinline></video>
-
-        <div id="videoInfo" class="small"></div>
+  <!-- SIDEBAR -->
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <div class="brand-icon">✦</div>
+      <div>
+        <strong>Memora</strong>
+        <small>AI WITH MEMORY</small>
+      </div>
     </div>
 
-    <!-- TRIM -->
-    <div class="card">
-        <h2>✂️ Trim Video</h2>
+    <button class="new-chat-btn" id="newChatBtn">
+      ＋ New conversation
+    </button>
 
-        <label>Start time (seconds)</label>
-        <input type="number" id="trimStart" min="0" value="0" step="0.1">
+    <div class="side-label">YOUR SPACE</div>
 
-        <label>End time (seconds)</label>
-        <input type="number" id="trimEnd" min="0" step="0.1">
+    <button class="nav-btn active" data-view="chat">
+      <span>◉</span> AI Chat
+    </button>
 
-        <div class="btn-row">
-            <button class="secondary" id="setStartBtn">Set Start Here</button>
-            <button class="secondary" id="setEndBtn">Set End Here</button>
+    <button class="nav-btn" data-view="memory">
+      <span>◈</span> Memory Library
+      <span class="nav-count" id="memoryCount">0</span>
+    </button>
+
+    <button class="nav-btn" data-view="history">
+      <span>◷</span> Chat History
+    </button>
+
+    <div class="sidebar-bottom">
+      <div class="storage-status">
+        <span class="online-dot"></span>
+        Local memory active
+      </div>
+
+      <button class="nav-btn" id="themeBtn">
+        ◐ Appearance
+      </button>
+
+      <button class="nav-btn" id="exportBtn">
+        ⇩ Export memory
+      </button>
+
+      <button class="nav-btn" id="importBtn">
+        ⇧ Import backup
+      </button>
+
+      <input type="file" id="importFile"
+             accept=".json,application/json" hidden>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main">
+
+    <header class="topbar">
+      <button class="icon-btn menu-btn" id="menuBtn">☰</button>
+
+      <div class="top-title">
+        <strong id="pageTitle">Memora AI</strong>
+        <span id="statusText">Local intelligence · Memory enabled</span>
+      </div>
+
+      <button class="icon-btn" id="clearChatBtn"
+              title="Clear conversation">⌫</button>
+    </header>
+
+    <!-- CHAT VIEW -->
+    <section id="chatView" class="view active">
+
+      <div class="chat-scroll" id="chatScroll">
+        <div id="messages"></div>
+      </div>
+
+      <div class="composer-area">
+        <div class="quick-actions" id="quickActions">
+          <button data-prompt="What do you remember about me?">
+            ◈ What do you remember?
+          </button>
+          <button data-prompt="Help me organize my projects">
+            ✧ Organize my projects
+          </button>
+          <button data-prompt="Give me a creative idea">
+            ✦ Give me an idea
+          </button>
         </div>
-    </div>
 
-    <!-- RESIZE -->
-    <div class="card">
-        <h2>📐 Resize Video</h2>
+        <div class="composer">
+          <textarea id="messageInput"
+            rows="1"
+            placeholder="Ask Memora anything..."
+            maxlength="5000"></textarea>
 
-        <label>Video aspect ratio</label>
-        <select id="ratio">
-            <option value="original">Original</option>
-            <option value="16:9">16:9 YouTube</option>
-            <option value="9:16">9:16 Shorts / Reels</option>
-            <option value="1:1">1:1 Square</option>
-            <option value="4:5">4:5 Portrait</option>
-        </select>
-
-        <label>Fit mode</label>
-        <select id="fitMode">
-            <option value="contain">Fit video (no cropping)</option>
-            <option value="cover">Fill frame (crop)</option>
-        </select>
-
-        <label>Export resolution</label>
-        <select id="resolution">
-            <option value="360">360p</option>
-            <option value="480">480p</option>
-            <option value="720" selected>720p</option>
-            <option value="1080">1080p</option>
-        </select>
-    </div>
-
-    <!-- COMPRESSION -->
-    <div class="card">
-        <h2>🗜️ Video Compression</h2>
-
-        <label>Quality / Bitrate</label>
-        <input type="range" id="quality" min="1" max="8" value="5">
-
-        <div class="small">
-            Lower quality = smaller file size. Higher quality = better video clarity.
+          <button id="sendBtn" class="send-btn" title="Send">
+            ↑
+          </button>
         </div>
 
-        <div id="qualityLabel">Balanced quality</div>
-    </div>
+        <div class="composer-footer">
+          <span>Memora uses local memory, not a cloud AI.</span>
+          <span>Enter ↵ to send</span>
+        </div>
+      </div>
+    </section>
 
-    <!-- CAPTIONS -->
-    <div class="card">
-        <h2>💬 Text Captions</h2>
+    <!-- MEMORY VIEW -->
+    <section id="memoryView" class="view">
+      <div class="page-content">
+        <div class="page-heading">
+          <div>
+            <h1>Memory Library</h1>
+            <p>Things your assistant has saved for future conversations.</p>
+          </div>
 
-        <label>Caption text</label>
-        <input type="text" id="captionText" placeholder="Type your caption here">
+          <button class="primary-btn" id="addMemoryBtn">
+            + Add memory
+          </button>
+        </div>
 
-        <label>Caption position</label>
-        <select id="captionPosition">
-            <option value="bottom">Bottom</option>
-            <option value="center">Center</option>
-            <option value="top">Top</option>
-        </select>
+        <div class="memory-stats">
+          <div class="stat-card">
+            <span class="stat-icon">◈</span>
+            <div>
+              <strong id="totalMemories">0</strong>
+              <small>Total memories</small>
+            </div>
+          </div>
 
-        <label>Caption size</label>
-        <input type="range" id="captionSize" min="18" max="64" value="32">
+          <div class="stat-card">
+            <span class="stat-icon">⌕</span>
+            <div>
+              <strong id="categoryCount">0</strong>
+              <small>Categories</small>
+            </div>
+          </div>
+        </div>
 
-        <label>Caption color</label>
-        <input type="color" id="captionColor" value="#ffffff">
+        <div class="memory-search">
+          <input type="search" id="memorySearch"
+                 placeholder="Search memories...">
+        </div>
 
-        <label>Caption background</label>
-        <select id="captionBackground">
-            <option value="none">Transparent</option>
-            <option value="box">Black background</option>
-        </select>
+        <div class="category-filters" id="categoryFilters">
+          <button class="filter-btn active" data-category="all">All</button>
+          <button class="filter-btn" data-category="personal">Personal</button>
+          <button class="filter-btn" data-category="projects">Projects</button>
+          <button class="filter-btn" data-category="preferences">Preferences</button>
+          <button class="filter-btn" data-category="facts">Facts</button>
+          <button class="filter-btn" data-category="notes">Notes</button>
+        </div>
 
-        <div id="captionPreview">Caption preview will appear here</div>
-    </div>
+        <div class="memory-list" id="memoryList"></div>
 
-    <!-- EXPORT -->
-    <div class="card">
-        <h2>⚡ Export Video</h2>
+        <div class="empty-state" id="memoryEmpty" hidden>
+          <div class="empty-icon">◈</div>
+          <h3>No memories found</h3>
+          <p>Tell Memora something to remember, or add it manually.</p>
+        </div>
+      </div>
+    </section>
 
-        <button id="exportBtn" disabled>EXPORT VIDEO</button>
-        <button id="stopBtn" class="danger" disabled>STOP EXPORT</button>
+    <!-- HISTORY VIEW -->
+    <section id="historyView" class="view">
+      <div class="page-content">
+        <div class="page-heading">
+          <div>
+            <h1>Chat History</h1>
+            <p>Your conversations saved on this device.</p>
+          </div>
+        </div>
 
-        <progress id="progress" value="0" max="100"></progress>
+        <div id="historyList" class="history-list"></div>
 
-        <div id="status">Import a video to get started.</div>
+        <div class="empty-state" id="historyEmpty" hidden>
+          <div class="empty-icon">◷</div>
+          <h3>No saved conversations</h3>
+          <p>Your conversations will appear here.</p>
+        </div>
+      </div>
+    </section>
 
-        <a id="downloadLink" hidden>⬇ DOWNLOAD VIDEO</a>
-    </div>
-
+  </main>
 </div>
 
-<footer>
-    ClipForge Studio · Local Video Processing · No Ads
-</footer>
+<!-- MEMORY MODAL -->
+<div class="modal-overlay" id="memoryModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="modalTitle">Add memory</h2>
+      <button class="icon-btn" id="closeModalBtn">×</button>
+    </div>
+
+    <label for="memoryTitle">Title</label>
+    <input id="memoryTitle" type="text" maxlength="100"
+           placeholder="Memory title">
+
+    <label for="memoryContent">Memory content</label>
+    <textarea id="memoryContent" rows="4" maxlength="3000"
+              placeholder="What should Memora remember?"></textarea>
+
+    <label for="memoryCategory">Category</label>
+    <select id="memoryCategory">
+      <option value="personal">Personal</option>
+      <option value="projects">Projects</option>
+      <option value="preferences">Preferences</option>
+      <option value="facts">Facts</option>
+      <option value="notes">Notes</option>
+    </select>
+
+    <div class="modal-actions">
+      <button class="secondary-btn" id="cancelModalBtn">Cancel</button>
+      <button class="primary-btn" id="saveMemoryBtn">Save memory</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
 
 <script src="app.js"></script>
 </body>
