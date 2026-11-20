@@ -1,177 +1,108 @@
+
 <!DOCTYPE html>
-<html lang="en" class="dark">
+<html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>LocalGPT - Offline Self-Learning AI</title>
-  <!-- Tailwind CSS CDN for styling -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    tailwind.config = {
-      darkMode: 'class',
-      theme: {
-        extend: {
-          colors: {
-            sidebar: '#171717',
-            chatbg: '#212121',
-            inputbg: '#2f2f2f',
-            bubbleUser: '#2f2f2f',
-            bubbleAi: '#212121',
-            accent: '#10a37f'
-          }
-        }
-      }
-    };
-  </script>
-  <style>
-    /* Custom Scrollbar */
-    ::-webkit-scrollbar { width: 6px; height: 6px; }
-    ::-webkit-scrollbar-track { background: transparent; }
-    ::-webkit-scrollbar-thumb { background: #424242; border-radius: 4px; }
-    ::-webkit-scrollbar-thumb:hover { background: #555555; }
-    pre code { font-family: monospace; }
-  </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TaskDesk Local</title>
+  <link rel="stylesheet" href="style.css">
 </head>
-<body class="bg-chatbg text-gray-100 h-screen flex overflow-hidden font-sans antialiased">
+<body>
 
-  <!-- Mobile Sidebar Overlay -->
-  <div id="mobile-overlay" class="fixed inset-0 bg-black/50 z-20 hidden md:hidden"></div>
+<div class="app">
+  <aside class="sidebar">
+    <h2>⚡ TaskDesk</h2>
+    <p class="subtitle">Local Workspace</p>
 
-  <!-- Sidebar -->
-  <aside id="sidebar" class="fixed inset-y-0 left-0 z-30 w-64 bg-sidebar flex flex-col transition-transform duration-300 transform -translate-x-full md:relative md:translate-x-0 border-r border-white/10">
-    <!-- Top Action -->
-    <div class="p-3">
-      <button id="btn-new-chat" class="w-full flex items-center justify-between px-3 py-2.5 rounded-lg border border-white/20 hover:bg-white/5 transition text-sm font-medium">
-        <span class="flex items-center gap-2">
-          <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-          New chat
-        </span>
-        <span class="text-xs text-gray-400 bg-white/10 px-1.5 py-0.5 rounded">Ctrl+K</span>
-      </button>
-    </div>
+    <button class="nav active" data-page="dashboard">🏠 Dashboard</button>
+    <button class="nav" data-page="tasks">📋 Tasks</button>
+    <button class="nav" data-page="history">🕓 History</button>
+    <button class="nav" data-page="profile">👤 Profile</button>
 
-    <!-- Chat History List -->
-    <div class="flex-1 overflow-y-auto px-3 space-y-1" id="chat-list">
-      <!-- Dynamic Chat items -->
-    </div>
-
-    <!-- Bottom Controls & Memory Stats -->
-    <div class="p-3 border-t border-white/10 space-y-2">
-      <!-- Auto-learn indicator button -->
-      <button id="btn-memory-modal" class="w-full flex items-center justify-between px-3 py-2 text-xs text-gray-300 hover:bg-white/5 rounded-lg transition">
-        <span class="flex items-center gap-2">
-          <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-          <span>Knowledge Bank</span>
-        </span>
-        <span id="knowledge-count" class="bg-emerald-500/20 text-emerald-300 px-1.5 py-0.5 rounded font-mono text-[10px]">0 facts</span>
-      </button>
-
-      <button id="btn-export" class="w-full text-left px-3 py-2 text-xs text-gray-400 hover:text-white hover:bg-white/5 rounded-lg transition flex items-center gap-2">
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
-        Export Chats & Memory
-      </button>
-
-      <button id="btn-clear-all" class="w-full text-left px-3 py-2 text-xs text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg transition flex items-center gap-2">
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-        Reset Everything
-      </button>
+    <div class="sidebar-bottom">
+      <p>Offline Mode</p>
+      <span class="offline">● Local storage active</span>
     </div>
   </aside>
 
-  <!-- Main Chat Container -->
-  <div class="flex-1 flex flex-col h-full w-full bg-chatbg">
-    <!-- Navbar -->
-    <header class="h-12 border-b border-white/10 flex items-center justify-between px-4 text-sm">
-      <div class="flex items-center gap-3">
-        <button id="btn-toggle-sidebar" class="md:hidden text-gray-400 hover:text-white p-1">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
-        </button>
-        <span class="font-semibold text-white tracking-wide flex items-center gap-2">
-          LocalGPT <span class="text-[10px] uppercase tracking-wider bg-emerald-500/20 text-emerald-400 px-1.5 py-0.5 rounded font-mono">100% Offline</span>
-        </span>
+  <main class="main">
+    <header>
+      <div>
+        <h1 id="pageTitle">Dashboard</h1>
+        <p class="subtitle">Your personal task workspace</p>
       </div>
-      <div id="current-chat-title" class="text-xs text-gray-400 truncate max-w-[200px] sm:max-w-xs">
-        New Conversation
-      </div>
+      <div class="user-badge">👤 <span id="usernameDisplay">User</span></div>
     </header>
 
-    <!-- Message Stream -->
-    <main id="chat-messages" class="flex-1 overflow-y-auto px-4 md:px-0 py-6 space-y-6 max-w-3xl mx-auto w-full">
-      <!-- Welcome Intro if chat is empty -->
-      <div id="welcome-screen" class="text-center py-16 space-y-4">
-        <div class="w-12 h-12 rounded-full bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center mx-auto text-emerald-400 text-xl font-bold">
-          ⚡
-        </div>
-        <h2 class="text-2xl font-bold text-gray-200">What would you like to explore?</h2>
-        <p class="text-sm text-gray-400 max-w-md mx-auto">
-          No cloud, no API keys, and no subscriptions. Talk to it, teach it facts, and watch it retain knowledge using your browser's local memory.
-        </p>
+    <section id="dashboardPage" class="page">
+      <div class="welcome">
+        <h2>Welcome back 👋</h2>
+        <p>Manage your daily tasks in one place.</p>
+      </div>
 
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-left max-w-lg mx-auto pt-4 text-xs">
-          <div class="p-3 rounded-lg border border-white/10 bg-inputbg hover:border-emerald-500/40 cursor-pointer sample-prompt">
-            💡 <strong>Teach fact:</strong> "Remember that my favourite programming language is Rust."
-          </div>
-          <div class="p-3 rounded-lg border border-white/10 bg-inputbg hover:border-emerald-500/40 cursor-pointer sample-prompt">
-            ❓ <strong>Ask questions:</strong> "What are the benefits of keeping data in LocalStorage?"
-          </div>
-          <div class="p-3 rounded-lg border border-white/10 bg-inputbg hover:border-emerald-500/40 cursor-pointer sample-prompt">
-            ⚙️ <strong>Define logic:</strong> "Learn: CRM stands for Customer Relationship Management."
-          </div>
-          <div class="p-3 rounded-lg border border-white/10 bg-inputbg hover:border-emerald-500/40 cursor-pointer sample-prompt">
-            ✏️ <strong>Code helper:</strong> "Write a JavaScript function to reverse a string."
-          </div>
+      <div class="stats">
+        <div class="stat-card">
+          <span>Total Tasks</span>
+          <h2 id="totalTasks">0</h2>
+        </div>
+        <div class="stat-card">
+          <span>Completed</span>
+          <h2 id="completedTasks">0</h2>
+        </div>
+        <div class="stat-card">
+          <span>XP Points</span>
+          <h2 id="totalXP">0</h2>
         </div>
       </div>
-    </main>
 
-    <!-- Input Footer -->
-    <footer class="p-4 bg-chatbg">
-      <div class="max-w-3xl mx-auto relative">
-        <form id="chat-form" class="relative flex items-end bg-inputbg rounded-2xl border border-white/10 focus-within:border-white/30 transition shadow-lg">
-          <textarea
-            id="prompt-input"
-            rows="1"
-            placeholder="Message LocalGPT (Try: 'Remember that...' or 'Learn: X is Y')..."
-            class="w-full bg-transparent text-gray-100 placeholder-gray-500 text-sm px-4 py-3.5 focus:outline-none resize-none max-h-48 overflow-y-auto leading-relaxed"
-          ></textarea>
-          <button
-            type="submit"
-            id="btn-send"
-            class="m-2 p-2 rounded-xl bg-white text-black hover:bg-gray-200 disabled:opacity-30 disabled:hover:bg-white transition flex-shrink-0"
-            disabled
-          >
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 12h14M12 5l7 7-7 7"/></svg>
-          </button>
-        </form>
-        <div class="text-[11px] text-center text-gray-500 mt-2">
-          LocalGPT saves conversations and learned facts directly in LocalStorage.
+      <div class="panel">
+        <h3>Recent Tasks</h3>
+        <div id="recentTasks"></div>
+      </div>
+    </section>
+
+    <section id="tasksPage" class="page hidden">
+      <div class="panel">
+        <div class="panel-heading">
+          <h3>Task Center</h3>
+          <button class="primary" id="showAddTask">+ Add Task</button>
         </div>
-      </div>
-    </footer>
-  </div>
 
-  <!-- Memory / Knowledge Inspector Modal -->
-  <div id="memory-modal" class="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4 hidden">
-    <div class="bg-[#1e1e1e] border border-white/15 rounded-xl max-w-xl w-full max-h-[80vh] flex flex-col shadow-2xl">
-      <div class="p-4 border-b border-white/10 flex items-center justify-between">
-        <div>
-          <h3 class="font-semibold text-white">Local Knowledge Base</h3>
-          <p class="text-xs text-gray-400">Facts and answers the AI has learned from you</p>
+        <div id="addTaskForm" class="add-form hidden">
+          <input id="taskName" placeholder="Task title">
+          <textarea id="taskDescription" placeholder="Task description"></textarea>
+          <input id="taskURL" type="url" placeholder="Optional learning/reference link (https://...)">
+          <input id="taskXP" type="number" min="0" max="1000" value="20" placeholder="XP points">
+
+          <div class="form-actions">
+            <button class="primary" id="saveTask">Save Task</button>
+            <button class="secondary" id="cancelTask">Cancel</button>
+          </div>
         </div>
-        <button id="btn-close-modal" class="text-gray-400 hover:text-white text-lg font-mono">&times;</button>
-      </div>
 
-      <div class="p-4 overflow-y-auto flex-1 space-y-3" id="memory-items-container">
-        <!-- Dynamically injected items -->
+        <div id="taskList"></div>
       </div>
+    </section>
 
-      <div class="p-3 border-t border-white/10 flex justify-between items-center text-xs text-gray-400">
-        <span id="memory-storage-size">0 KB used</span>
-        <button id="btn-wipe-memory" class="text-red-400 hover:underline">Wipe Knowledge Only</button>
+    <section id="historyPage" class="page hidden">
+      <div class="panel">
+        <h3>Completed History</h3>
+        <div id="historyList"></div>
       </div>
-    </div>
-  </div>
+    </section>
 
-  <script src="app.js"></script>
+    <section id="profilePage" class="page hidden">
+      <div class="panel profile-panel">
+        <h3>Your Profile</h3>
+        <label>Username</label>
+        <input id="profileName" placeholder="Enter username">
+        <button class="primary" id="saveProfile">Save Profile</button>
+        <p class="subtitle">Your information is saved only in this browser.</p>
+      </div>
+    </section>
+  </main>
+</div>
+
+<script src="app.js"></script>
 </body>
 </html>
