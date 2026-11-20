@@ -2,111 +2,229 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="theme-color" content="#090b10">
-  <title>Paperhouse Inc. AI Video Creator</title>
-  <link rel="stylesheet" href="style.css">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#090909">
+<title>Paperhouse Inc. AI Video Creator</title>
+<style>
+:root {
+  --bg:#090909;
+  --panel:#151515;
+  --line:#303030;
+  --gold:#d8ad50;
+  --gold2:#f1d28a;
+  --text:#f5f2eb;
+  --muted:#aaa49a;
+}
+* {box-sizing:border-box}
+body {
+  margin:0;
+  background:radial-gradient(ellipse at top,#211b0e,#090909 50%);
+  color:var(--text);
+  font:15px/1.5 system-ui,Arial;
+}
+.app {max-width:1120px;margin:auto;padding:22px 15px 55px}
+header {display:flex;justify-content:space-between;align-items:center;margin-bottom:25px}
+.brand {display:flex;gap:12px;align-items:center}
+.logo {
+  width:44px;height:44px;border:1px solid var(--gold);
+  border-radius:13px;display:grid;place-items:center;
+  color:var(--gold2);font-size:22px;font-weight:900
+}
+.brand h1 {font-size:17px;margin:0;letter-spacing:.08em}
+.brand small {font-size:10px;color:var(--muted);letter-spacing:.15em}
+.status {font-size:12px;color:#a5e0bd;border:1px solid #345744;border-radius:20px;padding:6px 10px}
+.hero {margin:20px 0}
+.eyebrow {color:var(--gold);font-size:11px;letter-spacing:.2em;font-weight:700}
+.hero h2 {font-size:clamp(28px,5vw,43px);line-height:1.1;margin:8px 0}
+.hero p,.muted {color:var(--muted)}
+.layout {display:grid;grid-template-columns:1.1fr .9fr;gap:16px}
+.panel {
+  background:linear-gradient(145deg,#191919,#101010);
+  border:1px solid var(--line);border-radius:17px;padding:18px;margin-bottom:16px
+}
+.panel h3 {font-size:16px;margin:0 0 13px}
+.field {margin:13px 0}
+.field label {display:block;color:var(--muted);font-size:12px;margin-bottom:6px}
+.field input,.field textarea,.field select {
+  width:100%;padding:12px;border:1px solid #3a3a3a;
+  border-radius:10px;background:#0b0b0b;color:var(--text);font:inherit
+}
+.field textarea {min-height:125px;resize:vertical}
+.grid2 {display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.btn {
+  border:1px solid #554521;background:#241d10;color:var(--gold2);
+  padding:10px 14px;border-radius:10px;font-weight:700;cursor:pointer
+}
+.btn.primary {background:linear-gradient(135deg,#e7c36e,#b8872f);color:#17120a;border:0}
+.btn.secondary {background:#202020;color:#eee;border-color:#414141}
+.btn:disabled {opacity:.45;cursor:not-allowed}
+.actions {display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.notice {border:1px solid #5b4b27;background:#211b0e;color:#e9d7ad;border-radius:10px;padding:11px;font-size:12px}
+.preview {aspect-ratio:16/9;background:#050505;border:1px solid #333;border-radius:11px;display:grid;place-items:center;color:#777;overflow:hidden}
+.preview video {width:100%;height:100%;object-fit:contain}
+.stats {display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:12px 0}
+.stat {background:#0c0c0c;border:1px solid #292929;border-radius:10px;padding:9px}
+.stat strong {display:block;color:var(--gold2);font-size:18px}
+.stat span {font-size:10px;color:var(--muted)}
+.progress {height:7px;background:#292929;border-radius:20px;overflow:hidden;margin:9px 0}
+.progress div {height:100%;width:0;background:linear-gradient(90deg,#a87925,#f2d58c)}
+.scene-list {display:grid;gap:9px}
+.scene {display:grid;grid-template-columns:110px 1fr;gap:10px;padding:10px;background:#0c0c0c;border:1px solid #2d2d2d;border-radius:11px}
+.scene img {width:100%;aspect-ratio:16/9;object-fit:cover;border-radius:7px}
+.scene h4 {margin:0;font-size:13px}
+.scene p {font-size:12px;color:var(--muted);margin:4px 0}
+.meta {font-size:10px;color:var(--gold)}
+.scene .btn {font-size:11px;padding:6px 9px}
+.log {white-space:pre-wrap;background:#080808;border:1px solid #292929;border-radius:9px;padding:10px;max-height:130px;overflow:auto;font:11px monospace;color:#d4cbb8}
+footer {text-align:center;color:#777;font-size:11px;margin-top:20px}
+@media(max-width:800px) {
+  .layout {grid-template-columns:1fr}
+  .status {display:none}
+}
+</style>
 </head>
 <body>
+<div class="app">
 
-<header class="topbar">
+<header>
   <div class="brand">
     <div class="logo">P</div>
     <div>
-      <h2>Paperhouse Inc.</h2>
-      <small>AI VIDEO CREATOR</small>
+      <h1>PAPERHOUSE INC.</h1>
+      <small>GEMINI-ASSISTED VIDEO STUDIO</small>
     </div>
   </div>
-  <span id="serverStatus" class="status">Checking server...</span>
+  <div class="status">● FREE-FIRST MODE</div>
 </header>
 
-<main class="container">
-  <section class="hero">
-    <p class="eyebrow">INTELLIGENT VIDEO STUDIO</p>
-    <h1>Create cinematic videos<br><span>with AI assistance.</span></h1>
-    <p>Turn your ideas into organized scenes, captions and downloadable videos.</p>
-  </section>
+<section class="hero">
+  <div class="eyebrow">PROMPT TO VIDEO STUDIO</div>
+  <h2>One prompt. A complete <span style="color:var(--gold2)">video plan.</span></h2>
+  <p>Use Gemini to draft scripts and scenes, match stock footage, and compile downloadable MP4 videos.</p>
+</section>
 
-  <section class="panel">
-    <div class="section-heading">
-      <h2>01. Create your video</h2>
-      <span class="tag">AI STORYBOARD</span>
-    </div>
+<div class="layout">
 
-    <label for="prompt">Describe your video idea</label>
-    <textarea id="prompt" rows="5" placeholder="Example: Create a cinematic story about the future of artificial intelligence..."></textarea>
+<main class="panel">
+<h3>01 · Project settings</h3>
 
-    <div class="grid">
-      <div>
-        <label for="duration">Video duration</label>
-        <select id="duration">
-          <option value="30">30 seconds</option>
-          <option value="60" selected>1 minute</option>
-          <option value="90">1 minute 30 seconds</option>
-          <option value="120">2 minutes</option>
-          <option value="180">3 minutes</option>
-        </select>
-      </div>
+<div class="field">
+<label>VIDEO PROMPT</label>
+<textarea id="prompt" placeholder="Create a 10-minute cinematic documentary about emergency survival skills..."></textarea>
+</div>
 
-      <div>
-        <label for="quality">Video quality</label>
-        <select id="quality">
-          <option value="360">360p</option>
-          <option value="720" selected>720p HD</option>
-        </select>
-      </div>
-    </div>
+<div class="grid2">
+<div class="field">
+<label>DURATION</label>
+<select id="duration">
+<option value="60">1 minute</option>
+<option value="180">3 minutes</option>
+<option value="300">5 minutes</option>
+<option value="420">7 minutes</option>
+<option value="600" selected>10 minutes</option>
+</select>
+</div>
 
-    <div class="options">
-      <label class="check">
-        <input type="checkbox" id="captions" checked>
-        Automatic captions
-      </label>
-    </div>
+<div class="field">
+<label>EXPORT SIZE</label>
+<select id="resolution">
+<option value="640:360">360p</option>
+<option value="1280:720" selected>720p</option>
+</select>
+</div>
+</div>
 
-    <button id="generateBtn" class="primary">Generate AI Storyboard</button>
-    <p id="message" class="message"></p>
-  </section>
+<div class="field">
+<label>GEMINI API KEY</label>
+<input id="geminiKey" type="password" autocomplete="off" placeholder="Paste your Gemini API key">
+<div class="muted" style="font-size:11px">
+Key is not saved. Do not publish secret keys in public GitHub repositories.
+</div>
+</div>
 
-  <section id="storyboardSection" class="panel hidden">
-    <div class="section-heading">
-      <h2>02. Your storyboard</h2>
-      <button id="exportSrtBtn" class="secondary">Export SRT</button>
-    </div>
+<div class="grid2">
+<div class="field">
+<label>GEMINI MODEL</label>
+<select id="model">
+<option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
+<option value="gemini-2.0-flash">Gemini 2.0 Flash</option>
+</select>
+</div>
 
-    <div id="videoInfo"></div>
-    <div id="scenes"></div>
-  </section>
+<div class="field">
+<label>PEXELS API KEY (OPTIONAL)</label>
+<input id="pexelsKey" type="password" autocomplete="off" placeholder="Pexels API key">
+</div>
+</div>
 
-  <section id="compileSection" class="panel hidden">
-    <div class="section-heading">
-      <h2>03. Compile your video</h2>
-      <span class="tag">MP4 EXPORT</span>
-    </div>
+<div class="actions">
+<button class="btn primary" id="planBtn">Create with Gemini</button>
+<button class="btn secondary" id="localBtn">Create local plan</button>
+<button class="btn secondary" id="sampleBtn">Sample prompt</button>
+</div>
 
-    <p class="muted">
-      Upload your generated scene video clips in storyboard order.
-      Gemini creates the storyboard, not the actual video footage.
-    </p>
-
-    <label for="clips">Upload scene clips</label>
-    <input type="file" id="clips" accept="video/*" multiple>
-
-    <button id="compileBtn" class="primary">Compile MP4 Video</button>
-    <p id="compileMessage" class="message"></p>
-
-    <div id="result" class="hidden">
-      <video id="preview" controls playsinline></video>
-      <a id="downloadBtn" class="download" href="#" download>Download MP4</a>
-    </div>
-  </section>
-
-  <footer>
-    <p>© 2026 Paperhouse Inc. · AI Video Creator</p>
-  </footer>
+<div class="notice" style="margin-top:12px">
+Gemini creates scripts and scene plans, not free video footage. Pexels supplies existing stock videos. API quotas and service terms apply.
+</div>
 </main>
 
-<script src="app.js"></script>
+<aside class="panel">
+<h3>02 · Production monitor</h3>
+
+<div class="preview" id="preview">
+Video preview will appear here
+</div>
+
+<div class="stats">
+<div class="stat"><strong id="sceneCount">0</strong><span>SCENES</span></div>
+<div class="stat"><strong id="totalTime">00:00</strong><span>DURATION</span></div>
+<div class="stat"><strong id="readyCount">0</strong><span>CLIPS FOUND</span></div>
+</div>
+
+<div class="muted" id="statusText" style="font-size:12px">
+Waiting for prompt.
+</div>
+
+<div class="progress">
+<div id="progressBar"></div>
+</div>
+
+<div class="actions">
+<button class="btn" id="searchBtn" disabled>Find stock footage</button>
+<button class="btn primary" id="renderBtn" disabled>Compile MP4</button>
+</div>
+
+<div class="field">
+<label>OPTIONAL NARRATION AUDIO</label>
+<input type="file" id="narrationFile" accept="audio/*">
+</div>
+
+<div class="field">
+<label>OPTIONAL BACKGROUND MUSIC</label>
+<input type="file" id="musicFile" accept="audio/*">
+</div>
+</aside>
+</div>
+
+<section class="panel">
+<h3>03 · Scene timeline</h3>
+<div class="muted" style="font-size:12px;margin-bottom:10px">
+Review the generated narration and footage queries.
+</div>
+<div id="sceneList" class="scene-list">
+Your scene plan will appear here.
+</div>
+</section>
+
+<section class="panel">
+<h3>04 · Activity log</h3>
+<div class="log" id="log">Paperhouse Inc. ready.</div>
+</section>
+
+<footer>Paperhouse Inc. · Gemini-assisted planning · Browser-based prototype</footer>
+</div>
+
+<script type="module" src="./app.js"></script>
 </body>
 </html>
