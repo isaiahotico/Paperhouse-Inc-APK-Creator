@@ -3,228 +3,336 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="theme-color" content="#090909">
-<title>Paperhouse Inc. AI Video Creator</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#0b1019">
+<title>ClipForge Studio</title>
+
 <style>
-:root {
-  --bg:#090909;
-  --panel:#151515;
-  --line:#303030;
-  --gold:#d8ad50;
-  --gold2:#f1d28a;
-  --text:#f5f2eb;
-  --muted:#aaa49a;
+* {
+    box-sizing: border-box;
 }
-* {box-sizing:border-box}
+
 body {
-  margin:0;
-  background:radial-gradient(ellipse at top,#211b0e,#090909 50%);
-  color:var(--text);
-  font:15px/1.5 system-ui,Arial;
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background: #0b1019;
+    color: #f1f5f9;
 }
-.app {max-width:1120px;margin:auto;padding:22px 15px 55px}
-header {display:flex;justify-content:space-between;align-items:center;margin-bottom:25px}
-.brand {display:flex;gap:12px;align-items:center}
+
+header {
+    padding: 18px;
+    background: #111827;
+    border-bottom: 1px solid #263244;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
 .logo {
-  width:44px;height:44px;border:1px solid var(--gold);
-  border-radius:13px;display:grid;place-items:center;
-  color:var(--gold2);font-size:22px;font-weight:900
+    font-size: 21px;
+    font-weight: bold;
+    color: #45d6b5;
 }
-.brand h1 {font-size:17px;margin:0;letter-spacing:.08em}
-.brand small {font-size:10px;color:var(--muted);letter-spacing:.15em}
-.status {font-size:12px;color:#a5e0bd;border:1px solid #345744;border-radius:20px;padding:6px 10px}
-.hero {margin:20px 0}
-.eyebrow {color:var(--gold);font-size:11px;letter-spacing:.2em;font-weight:700}
-.hero h2 {font-size:clamp(28px,5vw,43px);line-height:1.1;margin:8px 0}
-.hero p,.muted {color:var(--muted)}
-.layout {display:grid;grid-template-columns:1.1fr .9fr;gap:16px}
-.panel {
-  background:linear-gradient(145deg,#191919,#101010);
-  border:1px solid var(--line);border-radius:17px;padding:18px;margin-bottom:16px
+
+.container {
+    max-width: 900px;
+    margin: auto;
+    padding: 15px;
 }
-.panel h3 {font-size:16px;margin:0 0 13px}
-.field {margin:13px 0}
-.field label {display:block;color:var(--muted);font-size:12px;margin-bottom:6px}
-.field input,.field textarea,.field select {
-  width:100%;padding:12px;border:1px solid #3a3a3a;
-  border-radius:10px;background:#0b0b0b;color:var(--text);font:inherit
+
+.card {
+    background: #151d2b;
+    border: 1px solid #263449;
+    border-radius: 16px;
+    padding: 16px;
+    margin-bottom: 15px;
 }
-.field textarea {min-height:125px;resize:vertical}
-.grid2 {display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.btn {
-  border:1px solid #554521;background:#241d10;color:var(--gold2);
-  padding:10px 14px;border-radius:10px;font-weight:700;cursor:pointer
+
+h2 {
+    font-size: 17px;
+    margin-top: 0;
 }
-.btn.primary {background:linear-gradient(135deg,#e7c36e,#b8872f);color:#17120a;border:0}
-.btn.secondary {background:#202020;color:#eee;border-color:#414141}
-.btn:disabled {opacity:.45;cursor:not-allowed}
-.actions {display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
-.notice {border:1px solid #5b4b27;background:#211b0e;color:#e9d7ad;border-radius:10px;padding:11px;font-size:12px}
-.preview {aspect-ratio:16/9;background:#050505;border:1px solid #333;border-radius:11px;display:grid;place-items:center;color:#777;overflow:hidden}
-.preview video {width:100%;height:100%;object-fit:contain}
-.stats {display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:12px 0}
-.stat {background:#0c0c0c;border:1px solid #292929;border-radius:10px;padding:9px}
-.stat strong {display:block;color:var(--gold2);font-size:18px}
-.stat span {font-size:10px;color:var(--muted)}
-.progress {height:7px;background:#292929;border-radius:20px;overflow:hidden;margin:9px 0}
-.progress div {height:100%;width:0;background:linear-gradient(90deg,#a87925,#f2d58c)}
-.scene-list {display:grid;gap:9px}
-.scene {display:grid;grid-template-columns:110px 1fr;gap:10px;padding:10px;background:#0c0c0c;border:1px solid #2d2d2d;border-radius:11px}
-.scene img {width:100%;aspect-ratio:16/9;object-fit:cover;border-radius:7px}
-.scene h4 {margin:0;font-size:13px}
-.scene p {font-size:12px;color:var(--muted);margin:4px 0}
-.meta {font-size:10px;color:var(--gold)}
-.scene .btn {font-size:11px;padding:6px 9px}
-.log {white-space:pre-wrap;background:#080808;border:1px solid #292929;border-radius:9px;padding:10px;max-height:130px;overflow:auto;font:11px monospace;color:#d4cbb8}
-footer {text-align:center;color:#777;font-size:11px;margin-top:20px}
-@media(max-width:800px) {
-  .layout {grid-template-columns:1fr}
-  .status {display:none}
+
+button, select, input {
+    font-size: 15px;
+}
+
+button {
+    border: 0;
+    border-radius: 10px;
+    padding: 13px;
+    background: #20b99b;
+    color: #061510;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+button:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+.secondary {
+    background: #293548;
+    color: white;
+}
+
+.danger {
+    background: #ef4444;
+    color: white;
+}
+
+input[type="file"] {
+    width: 100%;
+    padding: 12px;
+    background: #202b3b;
+    border-radius: 10px;
+    color: white;
+}
+
+video {
+    width: 100%;
+    max-height: 420px;
+    background: #000;
+    border-radius: 12px;
+    margin-top: 10px;
+}
+
+label {
+    display: block;
+    margin-top: 14px;
+    margin-bottom: 7px;
+    color: #b8c5d6;
+}
+
+input[type="text"],
+input[type="number"],
+select {
+    width: 100%;
+    background: #202b3b;
+    color: white;
+    border: 1px solid #36465b;
+    border-radius: 9px;
+    padding: 12px;
+    outline: none;
+}
+
+input[type="range"] {
+    width: 100%;
+    accent-color: #20b99b;
+}
+
+.grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+
+.btn-row {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 15px;
+}
+
+.btn-row button {
+    flex: 1;
+    min-width: 120px;
+}
+
+.small {
+    font-size: 12px;
+    color: #94a3b8;
+}
+
+#status {
+    margin-top: 12px;
+    color: #45d6b5;
+    font-size: 14px;
+    word-break: break-word;
+}
+
+#progress {
+    width: 100%;
+    height: 10px;
+    border-radius: 20px;
+    margin-top: 15px;
+    accent-color: #20b99b;
+}
+
+#downloadLink {
+    display: block;
+    padding: 15px;
+    background: #2563eb;
+    color: white;
+    text-align: center;
+    border-radius: 10px;
+    text-decoration: none;
+    margin-top: 12px;
+    font-weight: bold;
+}
+
+#captionPreview {
+    color: #fff;
+    font-size: 15px;
+    background: #293548;
+    padding: 12px;
+    border-radius: 8px;
+    margin-top: 8px;
+    min-height: 42px;
+    overflow-wrap: anywhere;
+}
+
+footer {
+    text-align: center;
+    color: #718096;
+    padding: 25px;
+    font-size: 12px;
+}
+
+@media(max-width:500px) {
+    .grid {
+        grid-template-columns: 1fr;
+    }
+
+    header {
+        padding: 14px;
+    }
+
+    .logo {
+        font-size: 18px;
+    }
 }
 </style>
 </head>
+
 <body>
-<div class="app">
 
 <header>
-  <div class="brand">
-    <div class="logo">P</div>
-    <div>
-      <h1>PAPERHOUSE INC.</h1>
-      <small>GEMINI-ASSISTED VIDEO STUDIO</small>
-    </div>
-  </div>
-  <div class="status">● FREE-FIRST MODE</div>
+    <div class="logo">✦ CLIPFORGE STUDIO</div>
+    <div class="small">Offline Video Editor</div>
 </header>
 
-<section class="hero">
-  <div class="eyebrow">PROMPT TO VIDEO STUDIO</div>
-  <h2>One prompt. A complete <span style="color:var(--gold2)">video plan.</span></h2>
-  <p>Use Gemini to draft scripts and scenes, match stock footage, and compile downloadable MP4 videos.</p>
-</section>
+<div class="container">
 
-<div class="layout">
+    <!-- IMPORT -->
+    <div class="card">
+        <h2>📁 Import Video</h2>
+        <input type="file" id="videoInput" accept="video/*">
+        <p class="small">Your video stays on your device.</p>
 
-<main class="panel">
-<h3>01 · Project settings</h3>
+        <video id="videoPreview" controls playsinline></video>
 
-<div class="field">
-<label>VIDEO PROMPT</label>
-<textarea id="prompt" placeholder="Create a 10-minute cinematic documentary about emergency survival skills..."></textarea>
+        <div id="videoInfo" class="small"></div>
+    </div>
+
+    <!-- TRIM -->
+    <div class="card">
+        <h2>✂️ Trim Video</h2>
+
+        <label>Start time (seconds)</label>
+        <input type="number" id="trimStart" min="0" value="0" step="0.1">
+
+        <label>End time (seconds)</label>
+        <input type="number" id="trimEnd" min="0" step="0.1">
+
+        <div class="btn-row">
+            <button class="secondary" id="setStartBtn">Set Start Here</button>
+            <button class="secondary" id="setEndBtn">Set End Here</button>
+        </div>
+    </div>
+
+    <!-- RESIZE -->
+    <div class="card">
+        <h2>📐 Resize Video</h2>
+
+        <label>Video aspect ratio</label>
+        <select id="ratio">
+            <option value="original">Original</option>
+            <option value="16:9">16:9 YouTube</option>
+            <option value="9:16">9:16 Shorts / Reels</option>
+            <option value="1:1">1:1 Square</option>
+            <option value="4:5">4:5 Portrait</option>
+        </select>
+
+        <label>Fit mode</label>
+        <select id="fitMode">
+            <option value="contain">Fit video (no cropping)</option>
+            <option value="cover">Fill frame (crop)</option>
+        </select>
+
+        <label>Export resolution</label>
+        <select id="resolution">
+            <option value="360">360p</option>
+            <option value="480">480p</option>
+            <option value="720" selected>720p</option>
+            <option value="1080">1080p</option>
+        </select>
+    </div>
+
+    <!-- COMPRESSION -->
+    <div class="card">
+        <h2>🗜️ Video Compression</h2>
+
+        <label>Quality / Bitrate</label>
+        <input type="range" id="quality" min="1" max="8" value="5">
+
+        <div class="small">
+            Lower quality = smaller file size. Higher quality = better video clarity.
+        </div>
+
+        <div id="qualityLabel">Balanced quality</div>
+    </div>
+
+    <!-- CAPTIONS -->
+    <div class="card">
+        <h2>💬 Text Captions</h2>
+
+        <label>Caption text</label>
+        <input type="text" id="captionText" placeholder="Type your caption here">
+
+        <label>Caption position</label>
+        <select id="captionPosition">
+            <option value="bottom">Bottom</option>
+            <option value="center">Center</option>
+            <option value="top">Top</option>
+        </select>
+
+        <label>Caption size</label>
+        <input type="range" id="captionSize" min="18" max="64" value="32">
+
+        <label>Caption color</label>
+        <input type="color" id="captionColor" value="#ffffff">
+
+        <label>Caption background</label>
+        <select id="captionBackground">
+            <option value="none">Transparent</option>
+            <option value="box">Black background</option>
+        </select>
+
+        <div id="captionPreview">Caption preview will appear here</div>
+    </div>
+
+    <!-- EXPORT -->
+    <div class="card">
+        <h2>⚡ Export Video</h2>
+
+        <button id="exportBtn" disabled>EXPORT VIDEO</button>
+        <button id="stopBtn" class="danger" disabled>STOP EXPORT</button>
+
+        <progress id="progress" value="0" max="100"></progress>
+
+        <div id="status">Import a video to get started.</div>
+
+        <a id="downloadLink" hidden>⬇ DOWNLOAD VIDEO</a>
+    </div>
+
 </div>
 
-<div class="grid2">
-<div class="field">
-<label>DURATION</label>
-<select id="duration">
-<option value="60">1 minute</option>
-<option value="180">3 minutes</option>
-<option value="300">5 minutes</option>
-<option value="420">7 minutes</option>
-<option value="600" selected>10 minutes</option>
-</select>
-</div>
+<footer>
+    ClipForge Studio · Local Video Processing · No Ads
+</footer>
 
-<div class="field">
-<label>EXPORT SIZE</label>
-<select id="resolution">
-<option value="640:360">360p</option>
-<option value="1280:720" selected>720p</option>
-</select>
-</div>
-</div>
-
-<div class="field">
-<label>GEMINI API KEY</label>
-<input id="geminiKey" type="password" autocomplete="off" placeholder="Paste your Gemini API key">
-<div class="muted" style="font-size:11px">
-Key is not saved. Do not publish secret keys in public GitHub repositories.
-</div>
-</div>
-
-<div class="grid2">
-<div class="field">
-<label>GEMINI MODEL</label>
-<select id="model">
-<option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
-<option value="gemini-2.0-flash">Gemini 2.0 Flash</option>
-</select>
-</div>
-
-<div class="field">
-<label>PEXELS API KEY (OPTIONAL)</label>
-<input id="pexelsKey" type="password" autocomplete="off" placeholder="Pexels API key">
-</div>
-</div>
-
-<div class="actions">
-<button class="btn primary" id="planBtn">Create with Gemini</button>
-<button class="btn secondary" id="localBtn">Create local plan</button>
-<button class="btn secondary" id="sampleBtn">Sample prompt</button>
-</div>
-
-<div class="notice" style="margin-top:12px">
-Gemini creates scripts and scene plans, not free video footage. Pexels supplies existing stock videos. API quotas and service terms apply.
-</div>
-</main>
-
-<aside class="panel">
-<h3>02 · Production monitor</h3>
-
-<div class="preview" id="preview">
-Video preview will appear here
-</div>
-
-<div class="stats">
-<div class="stat"><strong id="sceneCount">0</strong><span>SCENES</span></div>
-<div class="stat"><strong id="totalTime">00:00</strong><span>DURATION</span></div>
-<div class="stat"><strong id="readyCount">0</strong><span>CLIPS FOUND</span></div>
-</div>
-
-<div class="muted" id="statusText" style="font-size:12px">
-Waiting for prompt.
-</div>
-
-<div class="progress">
-<div id="progressBar"></div>
-</div>
-
-<div class="actions">
-<button class="btn" id="searchBtn" disabled>Find stock footage</button>
-<button class="btn primary" id="renderBtn" disabled>Compile MP4</button>
-</div>
-
-<div class="field">
-<label>OPTIONAL NARRATION AUDIO</label>
-<input type="file" id="narrationFile" accept="audio/*">
-</div>
-
-<div class="field">
-<label>OPTIONAL BACKGROUND MUSIC</label>
-<input type="file" id="musicFile" accept="audio/*">
-</div>
-</aside>
-</div>
-
-<section class="panel">
-<h3>03 · Scene timeline</h3>
-<div class="muted" style="font-size:12px;margin-bottom:10px">
-Review the generated narration and footage queries.
-</div>
-<div id="sceneList" class="scene-list">
-Your scene plan will appear here.
-</div>
-</section>
-
-<section class="panel">
-<h3>04 · Activity log</h3>
-<div class="log" id="log">Paperhouse Inc. ready.</div>
-</section>
-
-<footer>Paperhouse Inc. · Gemini-assisted planning · Browser-based prototype</footer>
-</div>
-
-<script type="module" src="./app.js"></script>
+<script src="app.js"></script>
 </body>
 </html>
