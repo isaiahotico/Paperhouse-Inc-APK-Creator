@@ -1,646 +1,1162 @@
 
-const videoInput = document.getElementById("videoInput");
-const video = document.getElementById("videoPreview");
-
-const trimStart = document.getElementById("trimStart");
-const trimEnd = document.getElementById("trimEnd");
-
-const ratio = document.getElementById("ratio");
-const fitMode = document.getElementById("fitMode");
-const resolution = document.getElementById("resolution");
-
-const quality = document.getElementById("quality");
-const qualityLabel = document.getElementById("qualityLabel");
-
-const captionText = document.getElementById("captionText");
-const captionPosition = document.getElementById("captionPosition");
-const captionSize = document.getElementById("captionSize");
-const captionColor = document.getElementById("captionColor");
-const captionBackground = document.getElementById("captionBackground");
-const captionPreview = document.getElementById("captionPreview");
-
-const exportBtn = document.getElementById("exportBtn");
-const stopBtn = document.getElementById("stopBtn");
-const progress = document.getElementById("progress");
-const status = document.getElementById("status");
-const downloadLink = document.getElementById("downloadLink");
-const videoInfo = document.getElementById("videoInfo");
-
-const setStartBtn = document.getElementById("setStartBtn");
-const setEndBtn = document.getElementById("setEndHere");
-
-let originalFile = null;
-let videoURL = null;
-let recorder = null;
-let chunks = [];
-let exporting = false;
-let exportStart = 0;
-let exportEnd = 0;
-let exportDuration = 0;
-let renderCanvas = null;
-let renderContext = null;
-let animationFrame = null;
-let exportTimer = null;
-let outputURL = null;
-let audioStream = null;
-let canvasStream = null;
-
-function setStatus(message) {
-    status.textContent = message;
-}
-
-function formatTime(seconds) {
-    if (!Number.isFinite(seconds)) return "0:00";
-
-    const minutes = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-
-    return `${minutes}:${String(secs).padStart(2, "0")}`;
-}
-
-function revokeOutput() {
-    if (outputURL) {
-        URL.revokeObjectURL(outputURL);
-        outputURL = null;
-    }
-
-    downloadLink.hidden = true;
-    downloadLink.removeAttribute("href");
-}
-
-function revokeInput() {
-    if (videoURL) {
-        URL.revokeObjectURL(videoURL);
-        videoURL = null;
-    }
-}
-
-// IMPORT VIDEO
-
-videoInput.addEventListener("change", () => {
-    const file = videoInput.files[0];
-
-    if (!file) return;
-
-    if (!file.type.startsWith("video/")) {
-        setStatus("Please select a video file.");
-        return;
-    }
-
-    originalFile = file;
-
-    revokeInput();
-    revokeOutput();
-
-    videoURL = URL.createObjectURL(file);
-    video.src = videoURL;
-
-    exportBtn.disabled = true;
-    setStatus("Loading video...");
-});
-
-video.addEventListener("loadedmetadata", () => {
-    if (!originalFile) return;
-
-    trimStart.value = 0;
-    trimEnd.value = video.duration;
-    trimEnd.max = video.duration;
-
-    videoInfo.textContent =
-        `File: ${originalFile.name} | ` +
-        `Size: ${(originalFile.size / 1024 / 1024).toFixed(2)} MB | ` +
-        `Resolution: ${video.videoWidth} × ${video.videoHeight} | ` +
-        `Duration: ${formatTime(video.duration)}`;
-
-    exportBtn.disabled = false;
-    setStatus("Video ready. Edit settings and export.");
-});
-
-// SET TRIM POINTS
-
-setStartBtn.addEventListener("click", () => {
-    trimStart.value = video.currentTime.toFixed(2);
-});
-
-setEndBtn.addEventListener("click", () => {
-    trimEnd.value = video.currentTime.toFixed(2);
-});
-
-// CAPTION PREVIEW
-
-function updateCaptionPreview() {
-    const text = captionText.value.trim();
-
-    captionPreview.textContent =
-        text || "Caption preview will appear here";
-
-    captionPreview.style.color = captionColor.value;
-
-    captionPreview.style.fontSize =
-        Math.min(Number(captionSize.value), 40) + "px";
-
-    if (captionBackground.value === "box") {
-        captionPreview.style.background = "#000";
-    } else {
-        captionPreview.style.background = "#293548";
-    }
-}
-
-captionText.addEventListener("input", updateCaptionPreview);
-captionPosition.addEventListener("change", updateCaptionPreview);
-captionSize.addEventListener("input", updateCaptionPreview);
-captionColor.addEventListener("input", updateCaptionPreview);
-captionBackground.addEventListener("change", updateCaptionPreview);
-
-// QUALITY
-
-quality.addEventListener("input", () => {
-    const labels = {
-        1: "Very small file",
-        2: "Small file",
-        3: "Low quality",
-        4: "Economical",
-        5: "Balanced quality",
-        6: "High quality",
-        7: "Very high quality",
-        8: "Maximum available quality"
-    };
-
-    qualityLabel.textContent = labels[quality.value];
-});
-
-updateCaptionPreview();
-
-// ASPECT RATIO
-
-function getAspectRatio() {
-    switch (ratio.value) {
-        case "16:9": return 16 / 9;
-        case "9:16": return 9 / 16;
-        case "1:1": return 1;
-        case "4:5": return 4 / 5;
-        default: return video.videoWidth / video.videoHeight;
-    }
-}
-
-function calculateDimensions() {
-    const aspect = getAspectRatio();
-    const targetHeight = Number(resolution.value);
-
-    let width = Math.round(targetHeight * aspect);
-    let height = targetHeight;
-
-    // Video encoder works best with even dimensions.
-    width = Math.max(2, width - (width % 2));
-    height = Math.max(2, height - (height % 2));
-
-    return { width, height };
-}
-
-// DRAW CAPTION
-
-function drawCaption(ctx, width, height) {
-    const text = captionText.value.trim();
-
-    if (!text) return;
-
-    const fontSize = Math.max(
-        18,
-        Math.min(Number(captionSize.value), Math.floor(width / 12))
-    );
-
-    ctx.font = `bold ${fontSize}px Arial`;
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-
-    const maxWidth = width * 0.88;
-    const words = text.split(/\s+/);
-    const lines = [];
-    let currentLine = "";
-
-    for (const word of words) {
-        const testLine = currentLine
-            ? currentLine + " " + word
-            : word;
-
-        if (ctx.measureText(testLine).width > maxWidth && currentLine) {
-            lines.push(currentLine);
-            currentLine = word;
-        } else {
-            currentLine = testLine;
-        }
-    }
-
-    if (currentLine) lines.push(currentLine);
-
-    const lineHeight = fontSize * 1.25;
-    const padding = fontSize * 0.35;
-    const totalHeight = lines.length * lineHeight;
-
-    let y;
-
-    switch (captionPosition.value) {
-        case "top":
-            y = height * 0.12 + totalHeight / 2;
-            break;
-
-        case "center":
-            y = height / 2;
-            break;
-
-        default:
-            y = height * 0.84 - totalHeight / 2;
-    }
-
-    if (captionBackground.value === "box") {
-        const widest = Math.max(
-            ...lines.map(line => ctx.measureText(line).width)
-        );
-
-        ctx.fillStyle = "rgba(0,0,0,0.72)";
-        ctx.fillRect(
-            width / 2 - widest / 2 - padding,
-            y - totalHeight / 2 - padding,
-            widest + padding * 2,
-            totalHeight + padding * 2
-        );
-    }
-
-    ctx.fillStyle = captionColor.value;
-    ctx.strokeStyle = "#000000";
-    ctx.lineWidth = Math.max(2, fontSize * 0.09);
-    ctx.lineJoin = "round";
-
-    lines.forEach((line, index) => {
-        const lineY = y - totalHeight / 2 + lineHeight / 2
-            + index * lineHeight;
-
-        ctx.strokeText(line, width / 2, lineY, maxWidth);
-        ctx.fillText(line, width / 2, lineY, maxWidth);
-    });
-}
-
-// DRAW VIDEO TO CANVAS
-
-function drawFrame() {
-    if (!exporting || !renderContext || !renderCanvas) return;
-
-    const width = renderCanvas.width;
-    const height = renderCanvas.height;
-
-    renderContext.fillStyle = "#000";
-    renderContext.fillRect(0, 0, width, height);
-
-    if (video.readyState >= 2) {
-        const sourceWidth = video.videoWidth;
-        const sourceHeight = video.videoHeight;
-
-        const mode = fitMode.value;
-
-        let drawWidth;
-        let drawHeight;
-        let dx;
-        let dy;
-
-        if (mode === "cover") {
-            const scale = Math.max(
-                width / sourceWidth,
-                height / sourceHeight
-            );
-
-            drawWidth = sourceWidth * scale;
-            drawHeight = sourceHeight * scale;
-
-            dx = (width - drawWidth) / 2;
-            dy = (height - drawHeight) / 2;
-        } else {
-            const scale = Math.min(
-                width / sourceWidth,
-                height / sourceHeight
-            );
-
-            drawWidth = sourceWidth * scale;
-            drawHeight = sourceHeight * scale;
-
-            dx = (width - drawWidth) / 2;
-            dy = (height - drawHeight) / 2;
-        }
-
-        renderContext.drawImage(
-            video,
-            dx,
-            dy,
-            drawWidth,
-            drawHeight
-        );
-    }
-
-    drawCaption(renderContext, width, height);
-
-    const elapsed = video.currentTime - exportStart;
-    const percent = Math.max(
-        0,
-        Math.min(100, (elapsed / exportDuration) * 100)
-    );
-
-    progress.value = percent;
-
-    animationFrame = requestAnimationFrame(drawFrame);
-}
-
-// AUDIO STREAM
-
-function getAudioTracksFromVideo() {
-    try {
-        if (typeof video.captureStream === "function") {
-            return video.captureStream().getAudioTracks();
-        }
-
-        if (typeof video.mozCaptureStream === "function") {
-            return video.mozCaptureStream().getAudioTracks();
-        }
-    } catch (error) {
-        console.warn("Audio capture unavailable", error);
-    }
-
-    return [];
-}
-
-// EXPORT
-
-function getSupportedMimeType() {
-    const types = [
-        "video/mp4; codecs=avc1",
-        "video/mp4",
-        "video/webm; codecs=vp9",
-        "video/webm; codecs=vp8",
-        "video/webm"
-    ];
-
-    for (const type of types) {
-        if (MediaRecorder.isTypeSupported(type)) {
-            return type;
-        }
-    }
-
-    return "";
-}
-
-function getBitrate() {
-    const bitrates = {
-        1: 350000,
-        2: 550000,
-        3: 800000,
-        4: 1200000,
-        5: 2000000,
-        6: 3500000,
-        7: 5000000,
-        8: 8000000
-    };
-
-    return bitrates[quality.value] || 2000000;
-}
-
-function cleanupStreams() {
-    if (canvasStream) {
-        canvasStream.getTracks().forEach(track => track.stop());
-        canvasStream = null;
-    }
-
-    if (audioStream) {
-        audioStream.getTracks().forEach(track => track.stop());
-        audioStream = null;
-    }
-
-    if (animationFrame) {
-        cancelAnimationFrame(animationFrame);
-        animationFrame = null;
-    }
-
-    if (exportTimer) {
-        clearTimeout(exportTimer);
-        exportTimer = null;
-    }
-}
-
-function finishExport() {
-    if (!exporting) return;
-
-    exporting = false;
-
-    if (recorder && recorder.state !== "inactive") {
-        recorder.stop();
-    }
-
-    video.pause();
-
-    cleanupStreams();
-
-    exportBtn.disabled = false;
-    stopBtn.disabled = true;
-}
-
-exportBtn.addEventListener("click", async () => {
-    if (!originalFile || exporting) return;
-
-    if (!window.MediaRecorder) {
-        setStatus("Your browser does not support video exporting.");
-        return;
-    }
-
-    const start = Number(trimStart.value);
-    const end = Number(trimEnd.value);
-
-    if (
-        !Number.isFinite(start) ||
-        !Number.isFinite(end) ||
-        start < 0 ||
-        end > video.duration ||
-        end <= start
-    ) {
-        setStatus("Invalid trim settings. Check start and end time.");
-        return;
-    }
-
-    revokeOutput();
-
-    exportStart = start;
-    exportEnd = end;
-    exportDuration = end - start;
-
-    const dimensions = calculateDimensions();
-
-    renderCanvas = document.createElement("canvas");
-    renderCanvas.width = dimensions.width;
-    renderCanvas.height = dimensions.height;
-
-    renderContext = renderCanvas.getContext("2d", {
-        alpha: false
-    });
-
-    if (!renderContext) {
-        setStatus("Could not create video rendering canvas.");
-        return;
-    }
-
-    chunks = [];
-    progress.value = 0;
-    exporting = true;
-
-    exportBtn.disabled = true;
-    stopBtn.disabled = false;
-
-    setStatus("Preparing video...");
-
-    const mimeType = getSupportedMimeType();
-
-    try {
-        const options = {
-            videoBitsPerSecond: getBitrate()
-        };
-
-        if (mimeType) {
-            options.mimeType = mimeType;
-        }
-
-        recorder = new MediaRecorder(renderCanvas.captureStream(30), options);
-
-        // Add audio tracks when browser supports local video capture.
-        const audioTracks = getAudioTracksFromVideo();
-
-        if (audioTracks.length > 0) {
-            audioStream = new MediaStream(audioTracks);
-
-            audioTracks.forEach(track => {
-                try {
-                    recorder.stream.addTrack(track);
-                } catch (e) {
-                    console.warn("Could not add audio track", e);
-                }
-            }
-        }
-
-        recorder.ondataavailable = event => {
-            if (event.data && event.data.size > 0) {
-                chunks.push(event.data);
-            }
-        };
-
-        recorder.onerror = event => {
-            console.error("Recorder error", event);
-            setStatus("Export error. Try another browser.");
-            finishExport();
-        };
-
-        recorder.onstop = () => {
-            cleanupStreams();
-
-            if (chunks.length === 0) {
-                setStatus("No video was created. Try exporting again.");
-                exportBtn.disabled = false;
-                stopBtn.disabled = true;
-                return;
-            }
-
-            const finalType = recorder.mimeType || mimeType || "video/webm";
-
-            const blob = new Blob(chunks, {
-                type: finalType
-            });
-
-            outputURL = URL.createObjectURL(blob);
-
-            const extension = finalType.includes("mp4") ? "mp4" : "webm";
-
-            downloadLink.href = outputURL;
-            downloadLink.download = `clipforge_export.${extension}`;
-            downloadLink.textContent = `⬇ DOWNLOAD VIDEO (${(blob.size / 1024 / 1024).toFixed(2)} MB)`;
-            downloadLink.hidden = false;
-
-            progress.value = 100;
-
-            setStatus("Export complete! Your video is ready to save.");
-
-            exportBtn.disabled = false;
-            stopBtn.disabled = true;
-        };
-
-        recorder.start(250);
-
-        video.pause();
-        video.currentTime = exportStart;
-
-        await new Promise(resolve => {
-            const onSeek = () => {
-                video.removeEventListener("seeked", onSeek);
-                resolve();
-            };
-
-            video.addEventListener("seeked", onSeek, { once: true });
-
-            // Fallback for browsers that don't emit seeked.
-            setTimeout(() => {
-                video.removeEventListener("seeked", onSeek);
-                resolve();
-            }, 1500);
+/* ==========================================
+   MEMORA AI
+   Local AI-style assistant with persistent memory
+   No API / No Firebase
+========================================== */
+
+const $ = id => document.getElementById(id);
+
+const DB_NAME = "MemoraLocalAI";
+const DB_VERSION = 1;
+
+let db;
+let messages = [];
+let currentChatId = null;
+let activeCategory = "all";
+let editingMemoryId = null;
+let isThinking = false;
+
+/* ==========================================
+   DATABASE
+========================================== */
+
+function openDB() {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(DB_NAME, DB_VERSION);
+
+    request.onupgradeneeded = event => {
+      const database = event.target.result;
+
+      if (!database.objectStoreNames.contains("memories")) {
+        const store = database.createObjectStore("memories", {
+          keyPath: "id",
+          autoIncrement: true
         });
 
-        setStatus("Rendering video...");
+        store.createIndex("category", "category", {
+          unique: false
+        });
+      }
 
-        drawFrame();
+      if (!database.objectStoreNames.contains("chats")) {
+        database.createObjectStore("chats", {
+          keyPath: "id"
+        });
+      }
+    };
 
-        await video.play();
+    request.onsuccess = () => {
+      db = request.result;
+      resolve(db);
+    };
 
-        exportTimer = setInterval(() => {
-            if (!exporting) return;
+    request.onerror = () => reject(request.error);
+  });
+}
 
-            if (video.currentTime >= exportEnd || video.ended) {
-                finishExport();
-            }
-        }, 100);
+function dbStore(name, mode = "readonly") {
+  return db.transaction(name, mode).objectStore(name);
+}
 
-    } catch (error) {
-        console.error(error);
+function getAll(storeName) {
+  return new Promise((resolve, reject) => {
+    const req = dbStore(storeName).getAll();
+    req.onsuccess = () => resolve(req.result || []);
+    req.onerror = () => reject(req.error);
+  });
+}
 
-        setStatus("Export failed: " + error.message);
+function getItem(storeName, key) {
+  return new Promise((resolve, reject) => {
+    const req = dbStore(storeName).get(key);
+    req.onsuccess = () => resolve(req.result || null);
+    req.onerror = () => reject(req.error);
+  });
+}
 
-        finishExport();
-        cleanupStreams();
-        exportBtn.disabled = false;
-        stopBtn.disabled = true;
+function putItem(storeName, value) {
+  return new Promise((resolve, reject) => {
+    const req = dbStore(storeName, "readwrite").put(value);
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+function addItem(storeName, value) {
+  return new Promise((resolve, reject) => {
+    const req = dbStore(storeName, "readwrite").add(value);
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+function deleteItem(storeName, key) {
+  return new Promise((resolve, reject) => {
+    const req = dbStore(storeName, "readwrite").delete(key);
+    req.onsuccess = () => resolve();
+    req.onerror = () => reject(req.error);
+  });
+}
+
+function clearStore(storeName) {
+  return new Promise((resolve, reject) => {
+    const req = dbStore(storeName, "readwrite").clear();
+    req.onsuccess = () => resolve();
+    req.onerror = () => reject(req.error);
+  });
+}
+
+/* ==========================================
+   HELPERS
+========================================== */
+
+function uid() {
+  return Date.now().toString(36) +
+    Math.random().toString(36).slice(2, 8);
+}
+
+function escapeHTML(text) {
+  return String(text).replace(/[&<>"']/g, char => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;"
+  }[char]));
+}
+
+function cleanText(text) {
+  return String(text || "").trim();
+}
+
+function tokenize(text) {
+  return cleanText(text)
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}\s]/gu, " ")
+    .split(/\s+/)
+    .filter(word => word.length > 1);
+}
+
+function dateText(timestamp) {
+  return new Date(timestamp).toLocaleString();
+}
+
+function categoryName(category) {
+  const names = {
+    personal: "Personal",
+    projects: "Projects",
+    preferences: "Preferences",
+    facts: "Facts",
+    notes: "Notes"
+  };
+
+  return names[category] || "Notes";
+}
+
+function showToast(message) {
+  const toast = $("toast");
+  toast.textContent = message;
+  toast.classList.add("show");
+
+  clearTimeout(showToast.timer);
+  showToast.timer = setTimeout(() => {
+    toast.classList.remove("show");
+  }, 2400);
+}
+
+/* ==========================================
+   MEMORY ENGINE
+========================================== */
+
+async function saveMemory(title, content, category = "notes") {
+  title = cleanText(title);
+  content = cleanText(content);
+
+  if (!title || !content) return false;
+
+  const memories = await getAll("memories");
+
+  // Avoid duplicates
+  const duplicate = memories.find(memory =>
+    memory.title.toLowerCase() === title.toLowerCase() &&
+    memory.content.toLowerCase() === content.toLowerCase()
+  );
+
+  if (duplicate) {
+    showToast("This memory already exists.");
+    return false;
+  }
+
+  const record = {
+    title,
+    content,
+    category,
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+    tags: tokenize(title + " " + content).slice(0, 15)
+  };
+
+  await addItem("memories", record);
+  await updateMemoryUI();
+
+  return true;
+}
+
+async function updateMemory(id, title, content, category) {
+  const old = await getItem("memories", id);
+  if (!old) return;
+
+  await putItem("memories", {
+    ...old,
+    title: cleanText(title),
+    content: cleanText(content),
+    category,
+    updatedAt: Date.now(),
+    tags: tokenize(title + " " + content).slice(0, 15)
+  });
+
+  await updateMemoryUI();
+}
+
+async function removeMemory(id) {
+  await deleteItem("memories", id);
+  await updateMemoryUI();
+  showToast("Memory deleted.");
+}
+
+async function searchMemories(query) {
+  const memories = await getAll("memories");
+  const terms = tokenize(query);
+
+  if (!terms.length) return memories;
+
+  return memories
+    .map(memory => {
+      const searchable = tokenize(
+        memory.title + " " +
+        memory.content + " " +
+        (memory.tags || []).join(" ")
+      );
+
+      let score = 0;
+
+      terms.forEach(term => {
+        searchable.forEach(word => {
+          if (word === term) score += 4;
+          else if (word.includes(term) || term.includes(word)) score += 1;
+        });
+      });
+
+      return { memory, score };
+    })
+    .filter(item => item.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .map(item => item.memory);
+}
+
+async function getMemoryContext(query) {
+  const found = await searchMemories(query);
+
+  return found.slice(0, 6);
+}
+
+/* ==========================================
+   AUTO MEMORY DETECTION
+========================================== */
+
+async function autoSaveFromMessage(text) {
+  const message = cleanText(text);
+  const lower = message.toLowerCase();
+
+  // Explicit save command
+  const rememberPatterns = [
+    /^remember that\s+(.+)/i,
+    /^remember this:\s*(.+)/i,
+    /^save this:\s*(.+)/i,
+    /^save to memory:\s*(.+)/i,
+    /^memora remember:\s*(.+)/i
+  ];
+
+  for (const pattern of rememberPatterns) {
+    const match = message.match(pattern);
+
+    if (match) {
+      const content = match[1].trim();
+      const title = makeTitle(content);
+
+      await saveMemory(title, content, detectCategory(content));
+      return {
+        saved: true,
+        content
+      };
     }
-});
+  }
 
-// STOP
+  // Detect name
+  const nameMatch = message.match(
+    /\b(?:my name is|call me|i am called)\s+([a-z][a-z0-9 _-]{1,40})/i
+  );
 
-stopBtn.addEventListener("click", () => {
-    if (!exporting) return;
+  if (nameMatch) {
+    const name = nameMatch[1].trim().replace(/[.!?]+$/, "");
 
-    setStatus("Export stopped.");
+    await saveMemory(
+      "User name",
+      "The user's name is " + name,
+      "personal"
+    );
+  }
 
-    finishExport();
-});
+  // Detect project
+  const projectMatch = message.match(
+    /\bmy project is called\s+(.+)/i
+  );
 
-// Reset output when settings change
+  if (projectMatch) {
+    const project = projectMatch[1].trim().replace(/[.!?]+$/, "");
 
-[
-    ratio,
-    fitMode,
-    resolution,
-    quality,
-    captionText,
-    captionPosition,
-    captionSize,
-    captionColor,
-    captionBackground,
-    trimStart,
-    trimEnd
-].forEach(element => {
-    element.addEventListener("change", revokeOutput);
-});
+    await saveMemory(
+      "Project name",
+      "The user's project is called " + project,
+      "projects"
+    );
+  }
 
-window.addEventListener("beforeunload", () => {
-    revokeInput();
-    revokeOutput();
-    cleanupStreams();
-});
+  // Detect preference
+  const preferenceMatch = message.match(
+    /\bi prefer\s+(.+)/i
+  );
+
+  if (preferenceMatch) {
+    const preference = preferenceMatch[1].trim().replace(/[.!?]+$/, "");
+
+    await saveMemory(
+      "User preference",
+      "The user prefers " + preference,
+      "preferences"
+    );
+  }
+
+  // Likes
+  const likesMatch = message.match(
+    /\bi like\s+(.+)/i
+  );
+
+  if (likesMatch && !lower.includes("like to know")) {
+    const likes = likesMatch[1].trim().replace(/[.!?]+$/, "");
+
+    await saveMemory(
+      "Things the user likes",
+      "The user likes " + likes,
+      "preferences"
+    );
+  }
+
+  // Dislikes
+  const dislikeMatch = message.match(
+    /\bi don't like\s+(.+)/i
+  );
+
+  if (dislikeMatch) {
+    const dislike = dislikeMatch[1].trim().replace(/[.!?]+$/, "");
+
+    await saveMemory(
+      "Things the user dislikes",
+      "The user does not like " + dislike,
+      "preferences"
+    );
+  }
+
+  // "My goal is..."
+  const goalMatch = message.match(
+    /\bmy goal is\s+(.+)/i
+  );
+
+  if (goalMatch) {
+    const goal = goalMatch[1].trim().replace(/[.!?]+$/, "");
+
+    await saveMemory(
+      "User goal",
+      "The user's goal is " + goal,
+      "personal"
+    );
+  }
+}
+
+function detectCategory(text) {
+  const lower = text.toLowerCase();
+
+  if (/project|app|game|website|build|develop|coding/.test(lower))
+    return "projects";
+
+  if (/prefer|like|dislike|favorite|favourite/.test(lower))
+    return "preferences";
+
+  if /^(my name|call me|i am called)/i.test(text)
+    return "personal";
+
+  return "notes";
+}
+
+function makeTitle(text) {
+  const words = cleanText(text).split(/\s+/).slice(0, 7);
+  return words.join(" ").slice(0, 55);
+}
+
+/* ==========================================
+   CHAT STORAGE
+========================================== */
+
+function newChat() {
+  messages = [];
+  currentChatId = uid();
+
+  renderWelcome();
+  $("quickActions").style.display = "flex";
+
+  return currentChatId;
+}
+
+async function saveCurrentChat() {
+  if (!currentChatId || !messages.length) return;
+
+  const firstUserMessage = messages.find(m => m.role === "user");
+
+  const chat = {
+    id: currentChatId,
+    title: firstUserMessage
+      ? firstUserMessage.text.slice(0, 65)
+      : "New conversation",
+    messages,
+    updatedAt: Date.now()
+  };
+
+  await putItem("chats", chat);
+}
+
+async function loadChat(id) {
+  const chat = await getItem("chats", id);
+  if (!chat) return;
+
+  messages = chat.messages || [];
+  currentChatId = chat.id;
+
+  $("messages").innerHTML = "";
+  $("quickActions").style.display = "none";
+
+  messages.forEach(message => {
+    renderMessage(message.role, message.text, false);
+  });
+
+  showView("chat");
+}
+
+async function renderHistory() {
+  const chats = (await getAll("chats"))
+    .sort((a, b) => b.updatedAt - a.updatedAt);
+
+  const container = $("historyList");
+  container.innerHTML = "";
+
+  $("historyEmpty").hidden = chats.length > 0;
+
+  chats.forEach(chat => {
+    const last = chat.messages?.[chat.messages.length - 1];
+
+    const card = document.createElement("div");
+    card.className = "history-card";
+
+    card.innerHTML = `
+      <div class="history-info">
+        <h3>${escapeHTML(chat.title || "Conversation")}</h3>
+        <p>${escapeHTML(last?.text || "No messages")} ·
+        ${dateText(chat.updatedAt)}</p>
+      </div>
+      <button data-open="${escapeHTML(chat.id)}">Open</button>
+      <button data-delete="${escapeHTML(chat.id)}">Delete</button>
+    `;
+
+    container.appendChild(card);
+  });
+
+  container.querySelectorAll("[data-open]").forEach(btn => {
+    btn.onclick = () => loadChat(btn.dataset.open);
+  });
+
+  container.querySelectorAll("[data-delete]").forEach(btn => {
+    btn.onclick = async () => {
+      await deleteItem("chats", btn.dataset.delete);
+      renderHistory();
+      showToast("Conversation deleted.");
+    };
+  });
+}
+
+/* ==========================================
+   CHAT RENDERING
+========================================== */
+
+function renderWelcome() {
+  $("messages").innerHTML = `
+    <div class="welcome">
+      <div class="welcome-icon">✦</div>
+      <h1>What can I help you with?</h1>
+      <p>
+        I'm Memora, your local assistant. I can help with ideas,
+        organize projects, answer basic questions, and remember
+        information you choose to save.
+      </p>
+    </div>
+  `;
+}
+
+function renderMessage(role, text, animate = true) {
+  if ($("messages").querySelector(".welcome")) {
+    $("messages").innerHTML = "";
+  }
+
+  const row = document.createElement("div");
+  row.className = "message " + (role === "user" ? "user" : "ai");
+
+  const avatar = document.createElement("div");
+  avatar.className = "avatar";
+  avatar.textContent = role === "user" ? "●" : "✦";
+
+  const bubble = document.createElement("div");
+  bubble.className = "message-content";
+
+  // Basic safe formatting
+  bubble.innerHTML = formatText(text);
+
+  if (role === "user") {
+    row.appendChild(bubble);
+    row.appendChild(avatar);
+  } else {
+    row.appendChild(avatar);
+    row.appendChild(bubble);
+  }
+
+  if (animate) {
+    row.style.animation = "fadeIn .2s ease";
+  }
+
+  $("messages").appendChild(row);
+  scrollToBottom();
+}
+
+function formatText(text) {
+  const safe = escapeHTML(text);
+
+  return safe
+    .split(/\n/)
+    .map(line => {
+      if (/^\s*[-*]\s+/.test(line)) {
+        return "<p>• " + line.replace(/^\s*[-*]\s+/, "") + "</p>";
+      }
+
+      return line ? "<p>" + line + "</p>" : "<p></p>";
+    })
+    .join("");
+}
+
+function scrollToBottom() {
+  const area = $("chatScroll");
+  area.scrollTop = area.scrollHeight;
+}
+
+function showTyping() {
+  const row = document.createElement("div");
+  row.className = "message ai";
+  row.id = "typingIndicator";
+
+  row.innerHTML = `
+    <div class="avatar">✦</div>
+    <div class="message-content typing">Memora is thinking...</div>
+  `;
+
+  $("messages").appendChild(row);
+  scrollToBottom();
+}
+
+function removeTyping() {
+  $("typingIndicator")?.remove();
+}
+
+/* ==========================================
+   LOCAL RESPONSE ENGINE
+========================================== */
+
+async function generateResponse(userText) {
+  const text = cleanText(userText);
+  const lower = text.toLowerCase();
+
+  // Explicit memory command
+  if (/^(remember that|remember this:|save this:|save to memory:|memora remember:)/i.test(text)) {
+    return "I've processed your memory request. I'll save the information to your local Memory Library when it is valid. You can review it anytime in Memory Library.";
+  }
+
+  // Memory questions
+  if (
+    /what do you remember|show my memories|my saved memories|what have you saved|memory list/i.test(lower)
+  ) {
+    const memories = await getAll("memories");
+
+    if (!memories.length) {
+      return "Your memory library is empty right now. Tell me something like 'Remember that my project is called Farm Quest' and I'll save it for future conversations.";
+    }
+
+    return "Here are some things stored in your memory:\n\n" +
+      memories.slice(0, 10)
+        .map(m => "• " + m.title + ": " + m.content)
+        .join("\n\n") +
+      "\n\nYou can see all your saved memories in the Memory Library.";
+  }
+
+  // Recall/search specific memory
+  if (
+    /what do you know about|do you remember|search my memory|find in memory|remember my/i.test(lower)
+  ) {
+    const query = text
+      .replace(/what do you know about/i, "")
+      .replace(/do you remember/i, "")
+      .replace(/search my memory/i, "")
+      .replace(/find in memory/i, "")
+      .replace(/remember my/i, "")
+      .trim();
+
+    const found = await searchMemories(query);
+
+    if (!found.length) {
+      return "I couldn't find a matching memory. Try a different keyword, or add that information to my Memory Library.";
+    }
+
+    return "I found these related memories:\n\n" +
+      found.slice(0, 5)
+        .map(m => "• " + m.title + ": " + m.content)
+        .join("\n\n");
+  }
+
+  // Help
+  if (/^(help|what can you do|commands|how do you work)\b/i.test(lower)) {
+    return `Here's what I can do locally:
+
+• Chat and answer basic questions
+• Remember facts and preferences
+• Save project details
+• Search my memory
+• Organize your ideas
+• Generate writing and creative ideas
+• Keep conversation history
+
+Memory commands:
+• Remember that [fact]
+• What do you remember about me?
+• Search my memory for [topic]
+• Open Memory Library to edit or delete memories
+
+I'm a local response engine, not a cloud AI model, so complex reasoning is limited.`;
+  }
+
+  // Time and date
+  if (/what time|current time|what date|today's date|today is/i.test(lower)) {
+    return "Your device's current date and time is " +
+      new Date().toLocaleString() +
+      ".";
+  }
+
+  // Greetings
+  if (/^(hi|hello|hey|good morning|good afternoon|good evening)\b/i.test(lower)) {
+    const memories = await getAll("memories");
+    return "Hello! I'm Memora, your local AI-style assistant.\n\n" +
+      "I currently have " + memories.length +
+      " saved " + (memories.length === 1 ? "memory" : "memories") +
+      ". You can ask me questions, share ideas, or tell me something to remember.";
+  }
+
+  // Thanks
+  if (/thank you|thanks|thank you so much/i.test(lower)) {
+    return "You're welcome! I'm here to help you organize your ideas, remember important information, and work through projects.";
+  }
+
+  // Ideas
+  if (/give me an idea|creative idea|inspire me|random idea/i.test(lower)) {
+    const ideas = [
+      "Create a personal project tracker that turns big goals into small daily tasks.",
+      "Build an offline journal that saves ideas and automatically organizes them by topic.",
+      "Create a simple farming simulation where crops grow even while the player is away.",
+      "Build a website where users create numbered pages containing their own mini communities.",
+      "Create a short-story generator that builds episodes around lessons and choices.",
+      "Build a memory-based assistant that organizes project notes and searches them instantly."
+    ];
+
+    return "Here's an idea:\n\n✦ " +
+      ideas[Math.floor(Math.random() * ideas.length)] +
+      "\n\nYou can tell me to expand it into a complete project plan.";
+  }
+
+  // Project help
+  if (/organize my projects|manage my projects|my projects/i.test(lower)) {
+    const memories = await searchMemories("project app game website development");
+
+    if (memories.length) {
+      return "I found some project-related memories:\n\n" +
+        memories.slice(0, 8)
+          .map(m => "• " + m.title + ": " + m.content)
+          .join("\n\n") +
+        "\n\nI can help you organize these into tasks, milestones, and plans.";
+    }
+
+    return "Let's organize your projects. Tell me your project names and goals, and I'll help you structure them into ideas, features, and tasks. You can also begin with 'Remember that my project is...'.";
+  }
+
+  // Writing
+  if (/write|create a story|make a story|essay|script|youtube|description|caption/i.test(lower)) {
+    return "I can help create a draft using local templates and simple language patterns.\n\nTell me the topic, desired length, and style. For more complex writing, remember that my offline response engine has limited creativity and reasoning compared with a full language model.";
+  }
+
+  // Math
+  if (/calculate|what is \d|how much is \d/i.test(lower)) {
+    const match = text.match(/(-?\d+(?:\.\d+)?)\s*([+\-*/])\s*(-?\d+(?:\.\d+)?)/);
+
+    if (match) {
+      const a = Number(match[1]);
+      const b = Number(match[3]);
+      const op = match[2];
+      let result;
+
+      if (op === "+") result = a + b;
+      if (op === "-") result = a - b;
+      if (op === "*") result = a * b;
+      if (op === "/") result = b !== 0 ? a / b : "Cannot divide by zero";
+
+      return "The answer is " + result + ".";
+    }
+  }
+
+  // Memory-aware response
+  const related = await getMemoryContext(text);
+
+  if (related.length) {
+    return "I found some memories that may be relevant:\n\n" +
+      related.slice(0, 3)
+        .map(m => "• " + m.title + ": " + m.content)
+        .join("\n\n") +
+      "\n\nI can use these as context, but my local engine doesn't have full human-like reasoning. Tell me more about what you'd like to do and I'll help using the information available.";
+  }
+
+  // Generic fallback
+  const replies = [
+    "I understand what you're asking. I can help you explore the idea using my local knowledge and memory system. Could you break it into a smaller question or tell me what outcome you want?",
+    "Let's work through that. I can organize information, suggest steps, and connect it to anything you've saved in memory, though my offline intelligence is limited.",
+    "I can help you plan this. Tell me a little more about your goal, and I'll try to organize it into a useful answer.",
+    "That's an interesting topic. I can help you brainstorm, organize your ideas, or turn your request into a step-by-step plan."
+  ];
+
+  return replies[Math.floor(Math.random() * replies.length)];
+}
+
+/* ==========================================
+   SEND MESSAGE
+========================================== */
+
+async function sendMessage(text) {
+  text = cleanText(text);
+
+  if (!text || isThinking) return;
+
+  isThinking = true;
+  $("sendBtn").disabled = true;
+
+  if (!currentChatId) currentChatId = uid();
+
+  messages.push({
+    role: "user",
+    text,
+    timestamp: Date.now()
+  });
+
+  renderMessage("user", text);
+  $("quickActions").style.display = "none";
+
+  // Save explicit and detected memories
+  await autoSaveFromMessage(text);
+
+  showTyping();
+
+  // Local processing delay
+  const response = await generateResponse(text);
+
+  await new Promise(resolve => setTimeout(resolve, 350));
+
+  removeTyping();
+
+  messages.push({
+    role: "assistant",
+    text: response,
+    timestamp: Date.now()
+  });
+
+  renderMessage("assistant", response);
+
+  await saveCurrentChat();
+  await renderHistory();
+
+  isThinking = false;
+  $("sendBtn").disabled = false;
+  $("messageInput").focus();
+}
+
+/* ==========================================
+   MEMORY UI
+========================================== */
+
+async function updateMemoryUI() {
+  const memories = await getAll("memories");
+
+  $("memoryCount").textContent = memories.length;
+  $("totalMemories").textContent = memories.length;
+
+  const categories = new Set(memories.map(m => m.category));
+  $("categoryCount").textContent = categories.size;
+
+  renderMemories(memories);
+}
+
+function renderMemories(memories) {
+  const container = $("memoryList");
+  const search = cleanText($("memorySearch").value).toLowerCase();
+
+  const filtered = memories.filter(memory => {
+    const categoryMatches =
+      activeCategory === "all" ||
+      memory.category === activeCategory;
+
+    const searchMatches =
+      !search ||
+      memory.title.toLowerCase().includes(search) ||
+      memory.content.toLowerCase().includes(search) ||
+      (memory.tags || []).some(tag => tag.includes(search));
+
+    return categoryMatches && searchMatches;
+  });
+
+  container.innerHTML = "";
+
+  $("memoryEmpty").hidden = filtered.length > 0;
+
+  filtered.sort((a, b) => b.updatedAt - a.updatedAt)
+    .forEach(memory => {
+      const card = document.createElement("article");
+      card.className = "memory-card";
+
+      card.innerHTML = `
+        <div class="memory-meta">
+          <span>${escapeHTML(categoryName(memory.category))}</span>
+          <span>${dateText(memory.updatedAt)}</span>
+        </div>
+
+        <h3>${escapeHTML(memory.title)}</h3>
+        <p>${escapeHTML(memory.content)}</p>
+
+        <div class="memory-actions">
+          <button data-edit="${memory.id}">Edit</button>
+          <button data-remove="${memory.id}">Delete</button>
+        </div>
+      `;
+
+      container.appendChild(card);
+    });
+
+  container.querySelectorAll("[data-edit]").forEach(button => {
+    button.onclick = () => openEditMemory(Number(button.dataset.edit));
+  });
+
+  container.querySelectorAll("[data-remove]").forEach(button => {
+    button.onclick = async () => {
+      if (confirm("Delete this memory?")) {
+        await removeMemory(Number(button.dataset.remove));
+      }
+    };
+  });
+}
+
+/* ==========================================
+   MEMORY MODAL
+========================================== */
+
+function openAddMemory() {
+  editingMemoryId = null;
+
+  $("modalTitle").textContent = "Add memory";
+  $("memoryTitle").value = "";
+  $("memoryContent").value = "";
+  $("memoryCategory").value = "notes";
+  $("memoryModal").classList.add("open");
+}
+
+async function openEditMemory(id) {
+  const memory = await getItem("memories", id);
+  if (!memory) return;
+
+  editingMemoryId = id;
+
+  $("modalTitle").textContent = "Edit memory";
+  $("memoryTitle").value = memory.title;
+  $("memoryContent").value = memory.content;
+  $("memoryCategory").value = memory.category;
+  $("memoryModal").classList.add("open");
+}
+
+function closeMemoryModal() {
+  $("memoryModal").classList.remove("open");
+  editingMemoryId = null;
+}
+
+async function saveMemoryModal() {
+  const title = cleanText($("memoryTitle").value);
+  const content = cleanText($("memoryContent").value);
+  const category = $("memoryCategory").value;
+
+  if (!title || !content) {
+    showToast("Please fill in both fields.");
+    return;
+  }
+
+  if (editingMemoryId !== null) {
+    await updateMemory(editingMemoryId, title, content, category);
+    showToast("Memory updated.");
+  } else {
+    const saved = await saveMemory(title, content, category);
+    if (saved) showToast("Memory saved.");
+  }
+
+  closeMemoryModal();
+}
+
+/* ==========================================
+   VIEW NAVIGATION
+========================================== */
+
+function showView(view) {
+  document.querySelectorAll(".view").forEach(v => v.classList.remove("active"));
+
+  const target = $(view + "View");
+  if (target) target.classList.add("active");
+
+  document.querySelectorAll(".nav-btn[data-view]").forEach(btn => {
+    btn.classList.toggle("active", btn.dataset.view === view);
+  });
+
+  const titles = {
+    chat: "Memora AI",
+    memory: "Memory Library",
+    history: "Chat History"
+  };
+
+  $("pageTitle").textContent = titles[view] || "Memora AI";
+
+  if (view === "memory") updateMemoryUI();
+  if (view === "history") renderHistory();
+
+  $("sidebar").classList.remove("open");
+}
+
+/* ==========================================
+   EXPORT / IMPORT
+========================================== */
+
+async function exportMemory() {
+  const memories = await getAll("memories");
+  const chats = await getAll("chats");
+
+  const data = {
+    app: "Memora AI",
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    memories,
+    chats
+  };
+
+  const blob = new Blob(
+    [JSON.stringify(data, null, 2)],
+    { type: "application/json" }
+  );
+
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+
+  link.href = url;
+  link.download = "memora-backup-" +
+    new Date().toISOString().slice(0, 10) + ".json";
+
+  link.click();
+  URL.revokeObjectURL(url);
+
+  showToast("Backup exported.");
+}
+
+async function importMemory(file) {
+  if (!file) return;
+
+  try {
+    const text = await file.text();
+    const data = JSON.parse(text);
+
+    if (!Array.isArray(data.memories) &&
+        !Array.isArray(data.chats)) {
+      throw new Error("Invalid backup");
+    }
+
+    if (!confirm("Import this backup? Existing data will be kept."))
+      return;
+
+    for (const memory of (data.memories || [])) {
+      const { id, ...record } = memory;
+      await addItem("memories", record);
+    }
+
+    for (const chat of (data.chats || [])) {
+      await putItem("chats", chat);
+    }
+
+    await updateMemoryUI();
+    await renderHistory();
+
+    showToast("Backup imported successfully.");
+  } catch (error) {
+    console.error(error);
+    showToast("Import failed. Check your JSON file.");
+  }
+}
+
+/* ==========================================
+   EVENTS
+========================================== */
+
+function setupEvents() {
+  $("sendBtn").onclick = () => {
+    const input = $("messageInput");
+    const text = input.value;
+
+    input.value = "";
+    input.style.height = "auto";
+
+    sendMessage(text);
+  };
+
+  $("messageInput").addEventListener("keydown", event => {
+    if (event.key === "Enter" && !event.shiftKey) {
+      event.preventDefault();
+      $("sendBtn").click();
+    }
+  });
+
+  $("messageInput").addEventListener("input", event => {
+    event.target.style.height = "auto";
+    event.target.style.height =
+      Math.min(event.target.scrollHeight, 150) + "px";
+  });
+
+  $("newChatBtn").onclick = () => {
+    newChat();
+    showView("chat");
+  };
+
+  $("clearChatBtn").onclick = () => {
+    if (!messages.length) {
+      newChat();
+      return;
+    }
+
+    if (confirm("Start a new conversation? The old chat will remain in history.")) {
+      newChat();
+    }
+  };
+
+  document.querySelectorAll(".nav-btn[data-view]").forEach(button => {
+    button.onclick = () => showView(button.dataset.view);
+  });
+
+  document.querySelectorAll(".quick-actions button").forEach(button => {
+    button.onclick = () => sendMessage(button.dataset.prompt);
+  });
+
+  $("memorySearch").oninput = updateMemoryUI;
+
+  $("categoryFilters").onclick = event => {
+    const button = event.target.closest("[data-category]");
+    if (!button) return;
+
+    activeCategory = button.dataset.category;
+
+    document.querySelectorAll(".filter-btn").forEach(btn => {
+      btn.classList.toggle("active", btn === button);
+    });
+
+    updateMemoryUI();
+  };
+
+  $("addMemoryBtn").onclick = openAddMemory;
+  $("closeModalBtn").onclick = closeMemoryModal;
+  $("cancelModalBtn").onclick = closeMemoryModal;
+  $("saveMemoryBtn").onclick = saveMemoryModal;
+
+  $("memoryModal").onclick = event => {
+    if (event.target === $("memoryModal")) closeMemoryModal();
+  };
+
+  $("themeBtn").onclick = () => {
+    document.body.classList.toggle("light");
+
+    const light = document.body.classList.contains("light");
+    localStorage.setItem("memora-theme", light ? "light" : "dark");
+  };
+
+  $("menuBtn").onclick = () => {
+    $("sidebar").classList.toggle("open");
+  };
+
+  $("exportBtn").onclick = exportMemory;
+
+  $("importBtn").onclick = () => $("importFile").click();
+
+  $("importFile").onchange = event => {
+    importMemory(event.target.files[0]);
+    event.target.value = "";
+  };
+}
+
+/* ==========================================
+   INITIALIZATION
+========================================== */
+
+async function init() {
+  try {
+    await openDB();
+
+    // Restore theme
+    if (localStorage.getItem("memora-theme") === "light") {
+      document.body.classList.add("light");
+    }
+
+    setupEvents();
+    newChat();
+
+    await updateMemoryUI();
+    await renderHistory();
+
+  } catch (error) {
+    console.error("Memora initialization error:", error);
+
+    $("messages").innerHTML = `
+      <div class="welcome">
+        <h1>Memory unavailable</h1>
+        <p>Your browser could not open local database storage.
+        Try opening Memora in a regular browser.</p>
+      </div>
+    `;
+  }
+}
+
+init();
