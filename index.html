@@ -1,0 +1,142 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Paperhouse Inc. - AI Video Creator</title>
+<style>
+*{box-sizing:border-box}
+body{
+ margin:0;background:#090b12;color:white;
+ font-family:Arial,sans-serif;
+}
+header{
+ padding:20px;text-align:center;
+ background:#111522;border-bottom:1px solid #292d3b;
+}
+.logo{font-size:25px;font-weight:bold;color:#e6bd75}
+header p{color:#9ba3b7;font-size:13px}
+main{max-width:850px;margin:30px auto;padding:15px}
+.panel{
+ background:#131827;border:1px solid #293148;
+ border-radius:16px;padding:22px;margin-bottom:20px;
+}
+h2{font-size:19px;margin-top:0}
+label{display:block;margin:15px 0 8px;color:#b9c3d5}
+textarea,select{
+ width:100%;padding:14px;border-radius:9px;
+ border:1px solid #343c50;background:#0b1020;
+ color:white;font-size:15px;
+}
+textarea{height:125px;resize:vertical}
+button{
+ border:0;border-radius:10px;padding:14px 18px;
+ font-size:15px;font-weight:bold;cursor:pointer;
+}
+.generate{
+ width:100%;margin-top:18px;
+ background:linear-gradient(100deg,#c99a52,#f0d397);
+ color:#17120b;
+}
+button:disabled{opacity:.5;cursor:not-allowed}
+.secondary{background:#283249;color:white}
+#status{color:#d9bd87;margin-top:15px;text-align:center}
+.progress{
+ height:9px;background:#293148;border-radius:20px;
+ overflow:hidden;margin-top:15px;
+}
+#progressBar{
+ width:0;height:100%;background:#dfb76e;
+ transition:width .4s;
+}
+video{
+ width:100%;background:#050505;
+ border-radius:12px;margin-top:12px;
+}
+.hidden{display:none}
+.small{font-size:12px;color:#9ba3b7}
+.scene{
+ padding:12px;background:#0b1020;
+ border:1px solid #293148;border-radius:9px;
+ margin-top:10px;
+}
+footer{text-align:center;color:#69748b;padding:25px;font-size:12px}
+</style>
+</head>
+<body>
+
+<header>
+ <div class="logo">PAPERHOUSE INC.</div>
+ <p>Intelligent AI Movie Creator</p>
+</header>
+
+<main>
+ <section class="panel">
+  <h2>🎬 Create Your Movie</h2>
+  <label>Describe your movie</label>
+  <textarea id="prompt" placeholder="Example: Create a cinematic survival movie about a man trapped in a dangerous jungle..."></textarea>
+
+  <label>Video style</label>
+  <select id="style">
+   <option>Cinematic realistic</option>
+   <option>Hollywood action</option>
+   <option>2D animation</option>
+   <option>3D animation</option>
+   <option>Anime</option>
+   <option>Documentary</option>
+   <option>Fantasy</option>
+   <option>Horror</option>
+   <option>Science fiction</option>
+   <option>News</option>
+   <option>All styles - AI decides</option>
+  </select>
+
+  <label>Video duration</label>
+  <select id="duration">
+   <option value="60">60 seconds (1 minute)</option>
+  </select>
+
+  <label>Video quality</label>
+  <select id="quality">
+   <option value="360">360p - 640 × 360</option>
+  </select>
+
+  <label>Language</label>
+  <select id="language">
+   <option>English</option>
+   <option>Filipino</option>
+   <option>Tagalog</option>
+   <option>Spanish</option>
+   <option>Hindi</option>
+   <option>Japanese</option>
+  </select>
+
+  <button class="generate" id="generateBtn">
+   ✨ GENERATE MY MOVIE
+  </button>
+
+  <div id="status"></div>
+  <div class="progress"><div id="progressBar"></div></div>
+ </section>
+
+ <section class="panel hidden" id="storyPanel">
+  <h2>📖 AI Movie Storyboard</h2>
+  <div id="storyboard"></div>
+ </section>
+
+ <section class="panel hidden" id="resultPanel">
+  <h2>🎥 Your Generated Movie</h2>
+  <video id="videoPreview" controls playsinline></video>
+  <p class="small">MP4 · 360p · 60 seconds</p>
+  <a id="downloadLink" download="paperhouse-movie.mp4">
+   <button class="generate">⬇ DOWNLOAD MP4 VIDEO</button>
+  </a>
+ </section>
+</main>
+
+<footer>Paperhouse Inc. © 2026 · AI Video Studio</footer>
+
+<script src="app.js"></script>
+</body>
+</html>
