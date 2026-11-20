@@ -1,177 +1,219 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Paperhouse Inc. AI Remix Studio</title>
+<title>Paperhouse Inc. - Smart Video Studio</title>
+
+<script src="https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.10/dist/umd/ffmpeg.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@ffmpeg/util@0.12.1/dist/umd/index.js"></script>
+
 <style>
 *{box-sizing:border-box}
-body{margin:0;background:#090c14;color:#f5f5f5;font-family:Arial,sans-serif}
-header{padding:20px;background:#121827;border-bottom:1px solid #293247}
-.logo{font-size:23px;font-weight:900;color:#e8bd76}
-header p{color:#9ba8bc;font-size:12px;margin-bottom:0}
-main{max-width:1000px;margin:auto;padding:16px}
-.panel{background:#141c2b;border:1px solid #29364b;border-radius:15px;padding:18px;margin-bottom:18px}
-h2{font-size:18px;margin-top:0}
-label{display:block;color:#bbc7d8;font-size:13px;margin:14px 0 7px}
-input,textarea,select{width:100%;padding:12px;background:#0a1120;color:white;border:1px solid #35425a;border-radius:9px}
-textarea{height:100px;resize:vertical}
-button{padding:12px 16px;border:0;border-radius:9px;font-weight:bold;cursor:pointer}
-.primary{background:#e2b66f;color:#17120b}
-.secondary{background:#29374f;color:white}
-.danger{background:#592e35;color:white}
-button:disabled{opacity:.5}
-.full{width:100%;margin-top:15px}
-.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.status{color:#e6c68e;font-size:13px;margin-top:12px}
-.small{font-size:11px;color:#94a3b8}
-.results{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:12px;margin-top:14px}
-.asset{background:#0b1220;border:1px solid #334057;border-radius:10px;padding:9px;min-width:0}
-.asset video{width:100%;height:110px;object-fit:cover;background:#000;border-radius:7px}
-.asset button{width:100%;margin-top:8px}
-.scene{padding:13px;background:#0b1220;border:1px solid #344057;border-radius:10px;margin:12px 0}
-.scene-head{display:flex;justify-content:space-between;align-items:center;gap:8px}
-.scene select,.scene input{margin-top:8px}
-video#preview{width:100%;background:#000;border-radius:10px;margin-top:12px}
-.progress{height:8px;background:#29364b;border-radius:20px;overflow:hidden;margin-top:12px}
-#bar{height:100%;width:0;background:#e2b66f}
+body{
+ margin:0;background:#090d16;color:#f4f6fb;
+ font-family:Arial,sans-serif
+}
+header{
+ padding:20px;background:#111827;border-bottom:1px solid #293449;
+ display:flex;justify-content:space-between;align-items:center;gap:12px
+}
+.logo{font-size:21px;font-weight:bold;color:#e8bd63}
+.container{max-width:1100px;margin:auto;padding:18px}
+.panel{
+ background:#111827;border:1px solid #293449;
+ border-radius:14px;padding:18px;margin-bottom:18px
+}
+h2{font-size:18px;margin:0 0 14px}
+h3{font-size:15px;margin:0 0 9px}
+label{display:block;font-size:13px;color:#aebbd0;margin:12px 0 6px}
+input,textarea,select{
+ width:100%;padding:12px;border-radius:9px;
+ border:1px solid #34425a;background:#0b1220;
+ color:white;font-size:14px
+}
+textarea{min-height:105px;resize:vertical}
+button{
+ background:#d6a943;color:#101522;border:0;
+ border-radius:9px;padding:12px 16px;
+ font-weight:bold;cursor:pointer;margin-top:10px
+}
+button.secondary{background:#26364d;color:white}
+button.danger{background:#8f3440;color:white}
+button:disabled{opacity:.5;cursor:not-allowed}
+.row{display:flex;gap:10px;flex-wrap:wrap}
+.row>*{flex:1;min-width:130px}
+.status{
+ padding:12px;border-radius:9px;background:#0b1220;
+ color:#a9c6ff;font-size:13px;margin-top:12px
+}
+.progress{
+ height:9px;background:#263449;border-radius:20px;
+ overflow:hidden;margin-top:10px
+}
+.progress div{height:100%;width:0;background:#d6a943}
+.scene{
+ border:1px solid #34425a;background:#0b1220;
+ border-radius:10px;padding:13px;margin:12px 0
+}
+.scene-top{display:flex;justify-content:space-between;gap:10px}
+.scene small{color:#9eabc0}
+.asset-grid{
+ display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));
+ gap:12px;margin-top:12px
+}
+.asset{
+ background:#0b1220;border:1px solid #34425a;
+ border-radius:10px;overflow:hidden
+}
+.asset img{width:100%;height:115px;object-fit:cover;background:#172338}
+.asset-info{padding:10px;font-size:12px}
+.asset-info button{width:100%;font-size:12px}
+video{width:100%;max-height:480px;background:black;border-radius:10px}
+small,.muted{color:#9eabc0}
+a{color:#e8bd63}
 .hidden{display:none}
-a{color:#e7c486}
-@media(max-width:600px){.grid{grid-template-columns:1fr}main{padding:10px}}
+footer{text-align:center;color:#7f8ca1;padding:25px;font-size:12px}
 </style>
 </head>
+
 <body>
 
 <header>
  <div class="logo">PAPERHOUSE INC.</div>
- <p>Intelligent AI Video Remix & Concept Studio</p>
+ <div class="muted">Smart Video Remix Studio</div>
 </header>
 
-<main>
+<main class="container">
 
 <section class="panel">
- <h2>🎬 Create a new movie</h2>
+ <h2>1. API Configuration</h2>
 
- <label>Describe your video idea</label>
- <textarea id="prompt" placeholder="Example: Create an exciting documentary about the five most dangerous animals in the world..."></textarea>
+ <label>Gemini API Key – AI prompt understanding</label>
+ <input id="geminiKey" type="password" placeholder="Enter Gemini API key">
 
- <div class="grid">
-  <div>
-   <label>Video style</label>
-   <select id="style">
-    <option>Cinematic documentary</option>
-    <option>Action movie</option>
-    <option>Survival</option>
-    <option>Horror</option>
-    <option>News</option>
-    <option>Educational</option>
-    <option>Travel</option>
-    <option>Motivational</option>
-    <option>Funny</option>
-    <option>AI decides</option>
-   </select>
-  </div>
+ <label>Pexels API Key – stock video search</label>
+ <input id="pexelsKey" type="password" placeholder="Enter Pexels API key">
+
+ <div class="row">
   <div>
    <label>Video format</label>
-   <select id="format">
+   <select id="orientation">
     <option value="landscape">Landscape 16:9</option>
     <option value="portrait">Portrait 9:16</option>
     <option value="square">Square 1:1</option>
    </select>
   </div>
+  <div>
+   <label>Video length</label>
+   <select id="videoLength">
+    <option value="60">60 seconds</option>
+   </select>
+  </div>
  </div>
 
- <label>AI language</label>
- <select id="language">
-  <option>English</option>
-  <option>Filipino</option>
-  <option>Tagalog</option>
-  <option>Hindi</option>
-  <option>Spanish</option>
-  <option>Japanese</option>
-  <option>Other</option>
- </select>
-
- <button class="primary full" id="create">✨ CREATE INTELLIGENT STORYBOARD</button>
- <div class="status" id="status">Ready to create your movie.</div>
- <div class="progress"><div id="bar"></div></div>
+ <small>API keys are used by this browser. Do not publish this prototype with private keys embedded.</small>
 </section>
 
 <section class="panel">
- <h2>🔑 AI and stock footage connections</h2>
- <p class="small">Keys entered here are used by this browser. Do not publish a public website with private API keys embedded in its JavaScript.</p>
+ <h2>2. Describe Your Video</h2>
 
- <label>Gemini API key</label>
- <input id="geminiKey" type="password" placeholder="Enter Gemini API key">
+ <label>Enter your video prompt</label>
+ <textarea id="prompt" placeholder="Example: Create a cinematic forest survival video showing how to find water, build shelter, make fire, and survive dangerous wildlife."></textarea>
 
- <label>Pexels API key</label>
- <input id="pexelsKey" type="password" placeholder="Enter Pexels API key">
+ <div class="row">
+  <div>
+   <label>Video style</label>
+   <select id="style">
+    <option>Cinematic documentary</option>
+    <option>Action adventure</option>
+    <option>Educational</option>
+    <option>News documentary</option>
+    <option>Travel film</option>
+    <option>Nature documentary</option>
+    <option>Motivational</option>
+   </select>
+  </div>
+  <div>
+   <label>Language for narration script</label>
+   <select id="language">
+    <option>English</option>
+    <option>Filipino</option>
+    <option>Tagalog</option>
+    <option>Spanish</option>
+    <option>Hindi</option>
+   </select>
+  </div>
+ </div>
 
- <label>ElevenLabs API key (optional voice generation)</label>
- <input id="voiceKey" type="password" placeholder="Enter ElevenLabs API key">
+ <button id="generateBtn" onclick="generateVideoPlan()">
+  ✨ Understand Prompt & Find Videos
+ </button>
 
- <label>ElevenLabs Voice ID</label>
- <input id="voiceId" placeholder="Enter your voice ID">
+ <div class="status" id="status">Ready. Enter a prompt to begin.</div>
+ <div class="progress"><div id="progressBar"></div></div>
 </section>
 
 <section class="panel">
- <h2>📁 Upload your own videos</h2>
- <p class="small">Upload video clips that you own or have permission to use.</p>
- <input type="file" id="uploads" accept="video/*" multiple>
- <div id="uploadList" class="small"></div>
+ <h2>3. Your Storyboard</h2>
+ <label>Video title</label>
+ <input id="movieTitle" placeholder="Your video title">
+
+ <label>AI-created narration script</label>
+ <textarea id="fullScript" placeholder="Your narration script will appear here. You can edit it."></textarea>
+
+ <div class="row">
+  <button class="secondary" onclick="searchAllScenes()">Search Footage Again</button>
+  <button class="secondary" onclick="addScene()">+ Add Scene</button>
+ </div>
+
+ <div id="sceneList"></div>
 </section>
 
 <section class="panel">
- <h2>🎵 Background music</h2>
- <input type="file" id="music" accept="audio/*">
- <label>Optional narration audio file</label>
- <input type="file" id="narration" accept="audio/*">
- <p class="small">You can generate narration from your storyboard using the voice feature below, or upload your own narration.</p>
- <button class="secondary full" id="makeVoice">Generate AI narration audio</button>
- <div id="voiceStatus" class="small"></div>
+ <h2>4. Your Video Library</h2>
+ <p class="muted">Search results and your uploaded footage appear here.</p>
+
+ <label>Upload your own videos</label>
+ <input type="file" id="videoUpload" accept="video/*" multiple>
+
+ <div id="assetList" class="asset-grid"></div>
 </section>
 
-<section class="panel hidden" id="storyPanel">
- <h2>🧠 AI story and narration</h2>
- <div id="storyText"></div>
- <label>Editable narration script</label>
- <textarea id="script"></textarea>
- <button class="secondary full" id="refreshVoice">Update narration from script</button>
+<section class="panel">
+ <h2>5. Audio Settings</h2>
+
+ <label>Background music</label>
+ <input type="file" id="musicUpload" accept="audio/*">
+
+ <label>Narration audio</label>
+ <input type="file" id="narrationUpload" accept="audio/*">
+
+ <small>Upload your own narration recording or music. This version does not synthesize voices.</small>
 </section>
 
-<section class="panel hidden" id="stockPanel">
- <h2>🌍 Stock footage search</h2>
- <p class="small">Search licensed stock video from Pexels. Check individual licensing and attribution requirements.</p>
- <input id="searchTerm" placeholder="Search video footage">
- <button class="secondary full" id="searchBtn">Search stock videos</button>
- <div id="stockResults" class="results"></div>
- <p class="small">Stock footage provided by <a href="https://www.pexels.com/" target="_blank" rel="noopener">Pexels</a>.</p>
+<section class="panel">
+ <h2>6. Compile Your Video</h2>
+ <p class="muted">
+ The compiler trims and combines your selected footage into a 60-second MP4.
+ </p>
+
+ <button id="exportBtn" onclick="exportVideo()">🎬 Compile & Export MP4</button>
+
+ <div class="status" id="exportStatus">Waiting for your video.</div>
+ <div class="progress"><div id="exportProgress"></div></div>
 </section>
 
-<section class="panel hidden" id="editorPanel">
- <h2>✂️ Editable movie scenes</h2>
- <p class="small">Choose footage and set each scene's duration. Total duration is automatically adjusted to 60 seconds.</p>
- <div id="scenes"></div>
- <button class="secondary full" id="addScene">+ Add scene</button>
- <button class="primary full" id="export">🎬 EXPORT 60-SECOND MP4 · 360p</button>
- <div class="status" id="exportStatus"></div>
-</section>
-
-<section class="panel hidden" id="resultPanel">
- <h2>🏆 Your finished movie</h2>
+<section class="panel">
+ <h2>7. Final Video Preview</h2>
  <video id="preview" controls playsinline></video>
- <p class="small">MP4 · 360p · 60 seconds</p>
- <a id="download" download="paperhouse-movie.mp4">
-  <button class="primary full">⬇ DOWNLOAD YOUR MOVIE</button>
- </a>
+ <p id="downloadArea"></p>
 </section>
 
 </main>
 
-<!-- Browser video processing -->
-<script src="https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.10/dist/umd/ffmpeg.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@ffmpeg/util@0.12.1/dist/umd/index.js"></script>
+<footer>Paperhouse Inc. | Smart Video Remix Studio</footer>
+
 <script src="app.js"></script>
 </body>
 </html>
